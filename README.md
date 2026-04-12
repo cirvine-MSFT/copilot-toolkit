@@ -64,6 +64,13 @@ cd copilot-toolkit
 ./install-extensions.sh
 ```
 
+To install only specific extensions:
+
+```bash
+./install-extensions.sh ado-build-watcher          # just the build watcher
+.\install-extensions.ps1 ado-pr-watcher             # just the PR watcher
+```
+
 After installing, run `/clear` in the Copilot CLI or restart it to load the new extensions.
 
 ### Update

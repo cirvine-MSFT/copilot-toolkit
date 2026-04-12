@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # install-extensions.sh — Install Copilot CLI extensions from this repo
 # Works on macOS and Linux
+#
+# Usage:
+#   ./install-extensions.sh                      # Install all extensions
+#   ./install-extensions.sh ado-build-watcher    # Install only ado-build-watcher
+#   ./install-extensions.sh ado-pr-watcher ado-build-watcher  # Install specific ones
 
 set -euo pipefail
 
@@ -16,7 +21,29 @@ if [ ! -d "$SOURCE_DIR" ]; then
     exit 1
 fi
 
-EXTENSIONS=("ado-pr-watcher" "ado-build-watcher")
+ALL_EXTENSIONS=("ado-pr-watcher" "ado-build-watcher")
+
+if [ $# -gt 0 ]; then
+    EXTENSIONS=()
+    for arg in "$@"; do
+        found=0
+        for valid in "${ALL_EXTENSIONS[@]}"; do
+            if [ "$arg" = "$valid" ]; then found=1; break; fi
+        done
+        if [ "$found" -eq 1 ]; then
+            EXTENSIONS+=("$arg")
+        else
+            echo "Warning: Unknown extension '$arg'. Available: ${ALL_EXTENSIONS[*]}"
+        fi
+    done
+    if [ ${#EXTENSIONS[@]} -eq 0 ]; then
+        echo "Error: No valid extensions specified." >&2
+        exit 1
+    fi
+else
+    EXTENSIONS=("${ALL_EXTENSIONS[@]}")
+fi
+
 SHARED_DIRS=("lib")
 INSTALLED=()
 

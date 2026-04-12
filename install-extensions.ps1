@@ -1,5 +1,15 @@
 # install-extensions.ps1 — Install Copilot CLI extensions from this repo
 # Works on Windows PowerShell 5.1+ and pwsh 7+
+#
+# Usage:
+#   .\install-extensions.ps1                      # Install all extensions
+#   .\install-extensions.ps1 ado-build-watcher    # Install only ado-build-watcher
+#   .\install-extensions.ps1 ado-pr-watcher ado-build-watcher  # Install specific ones
+
+param(
+    [Parameter(ValueFromRemainingArguments)]
+    [string[]]$Only
+)
 
 $ErrorActionPreference = "Stop"
 
@@ -18,7 +28,20 @@ if (-not (Test-Path $sourceDir)) {
     exit 1
 }
 
-$extensions = @("ado-pr-watcher", "ado-build-watcher")
+$allExtensions = @("ado-pr-watcher", "ado-build-watcher")
+if ($Only -and $Only.Count -gt 0) {
+    $extensions = @($Only | Where-Object { $allExtensions -contains $_ })
+    $invalid = @($Only | Where-Object { $allExtensions -notcontains $_ })
+    if ($invalid.Count -gt 0) {
+        Write-Warning "Unknown extension(s): $($invalid -join ', '). Available: $($allExtensions -join ', ')"
+    }
+    if ($extensions.Count -eq 0) {
+        Write-Error "No valid extensions specified."
+        exit 1
+    }
+} else {
+    $extensions = $allExtensions
+}
 $sharedDirs = @("lib")
 [string[]]$installed = @()
 
