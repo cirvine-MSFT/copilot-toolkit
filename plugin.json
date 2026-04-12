@@ -1,0 +1,14 @@
+{
+  "name": "copilot-toolkit",
+  "version": "0.1.0",
+  "description": "Personal collection of GitHub Copilot CLI extensions, skills, and agents by cirvine-msft.",
+  "author": {
+    "name": "Casey Irvine"
+  },
+  "homepage": "https://github.com/cirvine-msft/copilot-toolkit",
+  "repository": "https://github.com/cirvine-msft/copilot-toolkit",
+  "license": "MIT",
+  "keywords": ["copilot-cli", "extensions", "azure-devops", "pr-watcher", "build-watcher"],
+  "skills": "./skills/",
+  "agents": "./agents/"
+}
