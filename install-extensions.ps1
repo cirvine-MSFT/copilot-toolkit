@@ -5,7 +5,7 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = $PSScriptRoot
 $sourceDir = Join-Path $repoRoot "extensions"
-$targetDir = Join-Path $HOME ".copilot" "extensions"
+$targetDir = Join-Path (Join-Path $HOME ".copilot") "extensions"
 
 if (-not (Test-Path $sourceDir)) {
     Write-Error "extensions/ directory not found at '$sourceDir'. Run this script from the repo root."
