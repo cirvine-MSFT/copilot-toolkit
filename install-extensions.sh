@@ -6,7 +6,9 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 SOURCE_DIR="$REPO_ROOT/extensions"
-TARGET_DIR="$HOME/.copilot/extensions"
+# Respect COPILOT_HOME if set (same env var the Copilot CLI uses)
+COPILOT_HOME="${COPILOT_HOME:-$HOME/.copilot}"
+TARGET_DIR="$COPILOT_HOME/extensions"
 
 if [ ! -d "$SOURCE_DIR" ]; then
     echo "Error: extensions/ directory not found at '$SOURCE_DIR'." >&2

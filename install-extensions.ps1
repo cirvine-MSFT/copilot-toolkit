@@ -5,7 +5,9 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = $PSScriptRoot
 $sourceDir = Join-Path $repoRoot "extensions"
-$targetDir = Join-Path (Join-Path $HOME ".copilot") "extensions"
+# Respect COPILOT_HOME if set (same env var the Copilot CLI uses)
+$copilotHome = if ($env:COPILOT_HOME) { $env:COPILOT_HOME } else { Join-Path $HOME ".copilot" }
+$targetDir = Join-Path $copilotHome "extensions"
 
 if (-not (Test-Path $sourceDir)) {
     Write-Error "extensions/ directory not found at '$sourceDir'. Run this script from the repo root."
