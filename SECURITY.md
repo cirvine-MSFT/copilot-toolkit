@@ -6,9 +6,7 @@ If you discover a security vulnerability in this project, please report it respo
 
 **Do not open a public issue.**
 
-Instead, please email [cirvine-msft](https://github.com/cirvine-msft) directly or use GitHub's [private vulnerability reporting](https://github.com/cirvine-msft/copilot-toolkit/security/advisories/new).
-
-I'll acknowledge receipt within 48 hours and aim to provide a fix or mitigation plan within 7 days.
+Instead, use GitHub's [private vulnerability reporting](https://github.com/cirvine-msft/copilot-toolkit/security/advisories/new) to submit a report. I'll acknowledge receipt within 48 hours and aim to provide a fix or mitigation plan within 7 days.
 
 ## Scope
 

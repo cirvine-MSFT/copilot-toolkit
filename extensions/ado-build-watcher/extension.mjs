@@ -25,7 +25,7 @@ const eventScanIntervalMs = 5000;
 const idleEventDeliveryDelayMs = 50;
 const orphanedDeliveryRetryDelayMs = 30000;
 const deliveryOwnerId = String(process.pid);
-const workerExecutable = process.platform === "win32" ? "node.exe" : "node";
+const workerExecutable = process.execPath;
 const defaultWatcherFollowUpPrompt = [
     "Summarize the build result.",
     "If it failed or was canceled, inspect likely failure details and diagnose the probable root cause.",

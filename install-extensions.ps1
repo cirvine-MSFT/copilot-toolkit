@@ -23,7 +23,9 @@ foreach ($ext in $extensions) {
         Write-Warning "Skipping '$ext' — source not found at '$src'"
         continue
     }
-    if (-not (Test-Path $dst)) { New-Item -ItemType Directory -Path $dst -Force | Out-Null }
+    # Clean target first so stale files from previous versions are removed
+    if (Test-Path $dst) { Remove-Item $dst -Recurse -Force }
+    New-Item -ItemType Directory -Path $dst -Force | Out-Null
     Copy-Item (Join-Path $src "*") $dst -Force -Recurse
     $installed += $ext
 }
@@ -35,15 +37,27 @@ foreach ($dir in $sharedDirs) {
         Write-Warning "Skipping shared dir '$dir' — source not found at '$src'"
         continue
     }
-    if (-not (Test-Path $dst)) { New-Item -ItemType Directory -Path $dst -Force | Out-Null }
+    if (Test-Path $dst) { Remove-Item $dst -Recurse -Force }
+    New-Item -ItemType Directory -Path $dst -Force | Out-Null
     Copy-Item (Join-Path $src "*") $dst -Force -Recurse
     $installed += $dir
 }
+
+# Preflight warnings
+$missingTools = @()
+if (-not (Get-Command copilot -ErrorAction SilentlyContinue)) { $missingTools += "copilot (GitHub Copilot CLI)" }
+if (-not (Get-Command az -ErrorAction SilentlyContinue)) { $missingTools += "az (Azure CLI)" }
 
 Write-Host ""
 Write-Host "Installed to: $targetDir" -ForegroundColor Green
 foreach ($item in $installed) {
     Write-Host "  - $item" -ForegroundColor Cyan
+}
+if ($missingTools.Count -gt 0) {
+    Write-Host ""
+    Write-Host "Warning: The following tools were not found on PATH:" -ForegroundColor Yellow
+    foreach ($tool in $missingTools) { Write-Host "  - $tool" -ForegroundColor Yellow }
+    Write-Host "Extensions require these at runtime." -ForegroundColor Yellow
 }
 Write-Host ""
 Write-Host "Run '/clear' in the Copilot CLI or restart it to load the new extensions." -ForegroundColor Yellow

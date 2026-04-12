@@ -25,6 +25,8 @@ for ext in "${EXTENSIONS[@]}"; do
         echo "Warning: Skipping '$ext' — source not found at '$src'"
         continue
     fi
+    # Clean target first so stale files from previous versions are removed
+    if [ -d "$dst" ]; then rm -rf "$dst"; fi
     mkdir -p "$dst"
     cp -R "$src/"* "$dst/"
     INSTALLED+=("$ext")
@@ -37,15 +39,29 @@ for dir in "${SHARED_DIRS[@]}"; do
         echo "Warning: Skipping shared dir '$dir' — source not found at '$src'"
         continue
     fi
+    if [ -d "$dst" ]; then rm -rf "$dst"; fi
     mkdir -p "$dst"
     cp -R "$src/"* "$dst/"
     INSTALLED+=("$dir")
 done
+
+# Preflight warnings
+MISSING_TOOLS=()
+if ! command -v copilot &>/dev/null; then MISSING_TOOLS+=("copilot (GitHub Copilot CLI)"); fi
+if ! command -v az &>/dev/null; then MISSING_TOOLS+=("az (Azure CLI)"); fi
 
 echo ""
 echo "Installed to: $TARGET_DIR"
 for item in "${INSTALLED[@]}"; do
     echo "  - $item"
 done
+if [ ${#MISSING_TOOLS[@]} -gt 0 ]; then
+    echo ""
+    echo "Warning: The following tools were not found on PATH:"
+    for tool in "${MISSING_TOOLS[@]}"; do
+        echo "  - $tool"
+    done
+    echo "Extensions require these at runtime."
+fi
 echo ""
 echo "Run '/clear' in the Copilot CLI or restart it to load the new extensions."

@@ -38,7 +38,6 @@ jobs:
 
       - name: Validate plugin.json
         run: |
-          echo "Validating plugin.json..."
           node -e "
             const fs = require('fs');
             const plugin = JSON.parse(fs.readFileSync('plugin.json', 'utf8'));
@@ -51,8 +50,138 @@ jobs:
             console.log('plugin.json is valid:', plugin.name, plugin.version);
           "
 
-      - name: Validate install scripts exist
+  test-install-bash:
+    name: Install (bash)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run bash install script
         run: |
-          test -f install-extensions.ps1 || { echo "::error::install-extensions.ps1 missing"; exit 1; }
-          test -f install-extensions.sh || { echo "::error::install-extensions.sh missing"; exit 1; }
-          echo "Install scripts present"
+          export HOME="$(mktemp -d)"
+          chmod +x install-extensions.sh
+          ./install-extensions.sh
+
+      - name: Verify installed files
+        run: |
+          export HOME="$(cat /proc/self/environ | tr '\0' '\n' | grep '^HOME=' | head -1 | cut -d= -f2)"
+          # Re-run with same isolated HOME
+          ISOLATED_HOME="$(mktemp -d)"
+          HOME="$ISOLATED_HOME" ./install-extensions.sh
+
+          echo "Checking installed files..."
+          test -f "$ISOLATED_HOME/.copilot/extensions/ado-pr-watcher/extension.mjs" || { echo "::error::ado-pr-watcher/extension.mjs missing"; exit 1; }
+          test -f "$ISOLATED_HOME/.copilot/extensions/ado-pr-watcher/common.mjs" || { echo "::error::ado-pr-watcher/common.mjs missing"; exit 1; }
+          test -f "$ISOLATED_HOME/.copilot/extensions/ado-pr-watcher/integration.mjs" || { echo "::error::ado-pr-watcher/integration.mjs missing"; exit 1; }
+          test -f "$ISOLATED_HOME/.copilot/extensions/ado-pr-watcher/worker.mjs" || { echo "::error::ado-pr-watcher/worker.mjs missing"; exit 1; }
+          test -f "$ISOLATED_HOME/.copilot/extensions/ado-build-watcher/extension.mjs" || { echo "::error::ado-build-watcher/extension.mjs missing"; exit 1; }
+          test -f "$ISOLATED_HOME/.copilot/extensions/ado-build-watcher/common.mjs" || { echo "::error::ado-build-watcher/common.mjs missing"; exit 1; }
+          test -f "$ISOLATED_HOME/.copilot/extensions/ado-build-watcher/watcher-worker.mjs" || { echo "::error::ado-build-watcher/watcher-worker.mjs missing"; exit 1; }
+          test -f "$ISOLATED_HOME/.copilot/extensions/lib/tab-indicator.mjs" || { echo "::error::lib/tab-indicator.mjs missing"; exit 1; }
+          echo "All expected files present"
+
+      - name: Verify idempotence (stale files removed)
+        run: |
+          ISOLATED_HOME="$(mktemp -d)"
+          HOME="$ISOLATED_HOME" ./install-extensions.sh
+
+          # Create a stale file in one extension dir
+          touch "$ISOLATED_HOME/.copilot/extensions/ado-pr-watcher/old-stale-file.mjs"
+
+          # Re-run installer
+          HOME="$ISOLATED_HOME" ./install-extensions.sh
+
+          # Stale file should be gone
+          if [ -f "$ISOLATED_HOME/.copilot/extensions/ado-pr-watcher/old-stale-file.mjs" ]; then
+            echo "::error::Stale file survived reinstall — installer is not idempotent"
+            exit 1
+          fi
+          echo "Idempotence verified — stale files removed on reinstall"
+
+  test-install-pwsh:
+    name: Install (pwsh)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run PowerShell install script
+        shell: pwsh
+        run: |
+          $env:HOME = (New-Item -ItemType Directory -Path (Join-Path ([System.IO.Path]::GetTempPath()) "copilot-test-$(Get-Random)")).FullName
+          ./install-extensions.ps1
+
+      - name: Verify installed files
+        shell: pwsh
+        run: |
+          $isolatedHome = (New-Item -ItemType Directory -Path (Join-Path ([System.IO.Path]::GetTempPath()) "copilot-test-$(Get-Random)")).FullName
+          $env:HOME = $isolatedHome
+          ./install-extensions.ps1
+
+          $expected = @(
+            "ado-pr-watcher/extension.mjs",
+            "ado-pr-watcher/common.mjs",
+            "ado-pr-watcher/integration.mjs",
+            "ado-pr-watcher/worker.mjs",
+            "ado-build-watcher/extension.mjs",
+            "ado-build-watcher/common.mjs",
+            "ado-build-watcher/watcher-worker.mjs",
+            "lib/tab-indicator.mjs"
+          )
+          $extDir = Join-Path $isolatedHome ".copilot" "extensions"
+          $missing = $expected | Where-Object { -not (Test-Path (Join-Path $extDir $_)) }
+          if ($missing) {
+            $missing | ForEach-Object { Write-Error "Missing: $_" }
+            exit 1
+          }
+          Write-Host "All expected files present"
+
+      - name: Verify idempotence (stale files removed)
+        shell: pwsh
+        run: |
+          $isolatedHome = (New-Item -ItemType Directory -Path (Join-Path ([System.IO.Path]::GetTempPath()) "copilot-test-$(Get-Random)")).FullName
+          $env:HOME = $isolatedHome
+          ./install-extensions.ps1
+
+          # Create stale file
+          $stale = Join-Path $isolatedHome ".copilot" "extensions" "ado-pr-watcher" "old-stale-file.mjs"
+          "" | Set-Content $stale
+
+          # Reinstall
+          ./install-extensions.ps1
+
+          if (Test-Path $stale) {
+            Write-Error "Stale file survived reinstall — installer is not idempotent"
+            exit 1
+          }
+          Write-Host "Idempotence verified — stale files removed on reinstall"
+
+  test-install-windows:
+    name: Install (Windows PowerShell)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run install and verify
+        shell: powershell
+        run: |
+          $isolatedHome = New-Item -ItemType Directory -Path (Join-Path $env:TEMP "copilot-test-$(Get-Random)")
+          $env:HOME = $isolatedHome.FullName
+          .\install-extensions.ps1
+
+          $expected = @(
+            "ado-pr-watcher\extension.mjs",
+            "ado-pr-watcher\common.mjs",
+            "ado-pr-watcher\integration.mjs",
+            "ado-pr-watcher\worker.mjs",
+            "ado-build-watcher\extension.mjs",
+            "ado-build-watcher\common.mjs",
+            "ado-build-watcher\watcher-worker.mjs",
+            "lib\tab-indicator.mjs"
+          )
+          $extDir = Join-Path $isolatedHome.FullName ".copilot" "extensions"
+          $missing = $expected | Where-Object { -not (Test-Path (Join-Path $extDir $_)) }
+          if ($missing) {
+            $missing | ForEach-Object { Write-Error "Missing: $_" }
+            exit 1
+          }
+          Write-Host "All expected files present on Windows"
