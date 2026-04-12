@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Syntax check extension files
+        run: |
+          echo "Checking .mjs syntax..."
+          errors=0
+          for f in $(find extensions -name '*.mjs' -type f); do
+            if ! node --check "$f" 2>&1; then
+              echo "::error file=$f::Syntax error in $f"
+              errors=$((errors + 1))
+            fi
+          done
+          if [ "$errors" -gt 0 ]; then
+            echo "::error::$errors file(s) had syntax errors"
+            exit 1
+          fi
+          echo "All files passed syntax check"
+
+      - name: Validate plugin.json
+        run: |
+          echo "Validating plugin.json..."
+          node -e "
+            const fs = require('fs');
+            const plugin = JSON.parse(fs.readFileSync('plugin.json', 'utf8'));
+            const required = ['name', 'version', 'description', 'license'];
+            const missing = required.filter(k => !plugin[k]);
+            if (missing.length) {
+              console.error('plugin.json missing required fields:', missing.join(', '));
+              process.exit(1);
+            }
+            console.log('plugin.json is valid:', plugin.name, plugin.version);
+          "
+
+      - name: Validate install scripts exist
+        run: |
+          test -f install-extensions.ps1 || { echo "::error::install-extensions.ps1 missing"; exit 1; }
+          test -f install-extensions.sh || { echo "::error::install-extensions.sh missing"; exit 1; }
+          echo "Install scripts present"
