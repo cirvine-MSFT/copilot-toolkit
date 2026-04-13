@@ -58,6 +58,10 @@ for ext in "${EXTENSIONS[@]}"; do
     if [ -d "$dst" ]; then rm -rf "$dst"; fi
     mkdir -p "$dst"
     cp -R "$src/"* "$dst/"
+    # Install npm dependencies if a package.json exists (e.g. visual-review uses ws)
+    if [ -f "$dst/package.json" ] && command -v npm &>/dev/null; then
+        (cd "$dst" && npm install --omit=dev --no-fund --no-audit 2>/dev/null) || true
+    fi
     INSTALLED+=("$ext")
 done
 

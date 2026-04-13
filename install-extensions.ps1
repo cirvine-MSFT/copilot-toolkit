@@ -56,6 +56,16 @@ foreach ($ext in $extensions) {
     if (Test-Path $dst) { Remove-Item $dst -Recurse -Force }
     New-Item -ItemType Directory -Path $dst -Force | Out-Null
     Get-ChildItem $src | Copy-Item -Destination $dst -Recurse -Force
+    # Install npm dependencies if a package.json exists (e.g. visual-review uses ws)
+    $pkgJson = Join-Path $dst "package.json"
+    if (Test-Path $pkgJson) {
+        $npmCmd = Get-Command npm -ErrorAction SilentlyContinue
+        if ($npmCmd) {
+            Push-Location $dst
+            & npm install --omit=dev --no-fund --no-audit 2>$null | Out-Null
+            Pop-Location
+        }
+    }
     $installed += [string]$ext
 }
 

@@ -1,12 +1,11 @@
 // Server worker for the visual-review extension.
 // Spawned as a detached process by the extension host:
-//   process.execPath server-worker.mjs <stateFilePath>
+//   node server-worker.mjs <stateFilePath>
 //
-// Hosts an HTTP server with a manual WebSocket implementation, serves the
-// browser-based diff viewer from the web/ directory, and bridges comments
-// and visualizations between the browser and the Copilot CLI session.
+// Hosts an HTTP + WebSocket server, serves the browser-based diff viewer
+// from the web/ directory, and bridges comments and visualizations between
+// the browser and the Copilot CLI session.
 
-import { createHash } from "node:crypto";
 import { exec } from "node:child_process";
 import {
     existsSync,
@@ -22,8 +21,14 @@ import { homedir } from "node:os";
 import { dirname, extname, join, resolve } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 
 import { CommentStore } from "./comment-store.mjs";
+
+// ws is a CommonJS package — use createRequire to import it from the
+// extension's own node_modules so the worker can run under plain `node`.
+const require = createRequire(import.meta.url);
+const { WebSocketServer } = require("ws");
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -33,7 +38,6 @@ const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const WEB_DIR = join(__dirname, "web");
-const WEBSOCKET_MAGIC = "258EAFA5-E914-47DA-95CA-5AB9C11FE5B4";
 const SHUTDOWN_POLL_MS = 5_000;
 const STATE_UPDATE_MS = 10_000;
 const VIZ_POLL_MS = 3_000;
@@ -198,192 +202,32 @@ function parseDiffFiles(diffText) {
 }
 
 // ---------------------------------------------------------------------------
-// WebSocket protocol helpers (RFC 6455, text frames only, no extensions)
+// WebSocket server (via ws library)
 // ---------------------------------------------------------------------------
 
-function computeAcceptKey(clientKey) {
-    return createHash("sha1")
-        .update(clientKey + WEBSOCKET_MAGIC)
-        .digest("base64");
-}
-
-function handleUpgrade(req, socket) {
-    const key = req.headers["sec-websocket-key"];
-    if (!key) {
-        socket.destroy();
-        return null;
-    }
-
-    const accept = computeAcceptKey(key);
-    socket.write(
-        "HTTP/1.1 101 Switching Protocols\r\n" +
-        "Upgrade: websocket\r\n" +
-        "Connection: Upgrade\r\n" +
-        `Sec-WebSocket-Accept: ${accept}\r\n` +
-        "\r\n",
-    );
-
-    return socket;
-}
-
-/**
- * Encode a UTF-8 string into a WebSocket text frame (opcode 0x1, FIN set).
- * Server-to-client frames are never masked.
- */
-function encodeFrame(data) {
-    const payload = Buffer.from(data, "utf8");
-    const len = payload.length;
-    let header;
-    if (len < 126) {
-        header = Buffer.alloc(2);
-        header[0] = 0x81; // FIN + text opcode
-        header[1] = len;
-    } else if (len < 65536) {
-        header = Buffer.alloc(4);
-        header[0] = 0x81;
-        header[1] = 126;
-        header.writeUInt16BE(len, 2);
-    } else {
-        header = Buffer.alloc(10);
-        header[0] = 0x81;
-        header[1] = 127;
-        header.writeBigUInt64BE(BigInt(len), 2);
-    }
-    return Buffer.concat([header, payload]);
-}
-
-/**
- * Encode a close frame (opcode 0x8).
- * @param {number} code  Status code (e.g. 1000 for normal closure)
- */
-function encodeCloseFrame(code) {
-    const buf = Buffer.alloc(4);
-    buf[0] = 0x88; // FIN + close opcode
-    buf[1] = 2;    // payload length = 2 bytes for the status code
-    buf.writeUInt16BE(code, 2);
-    return buf;
-}
-
-/** Encode a pong frame echoing the given payload. */
-function encodePongFrame(payload) {
-    const len = payload.length;
-    let header;
-    if (len < 126) {
-        header = Buffer.alloc(2);
-        header[0] = 0x8a; // FIN + pong opcode
-        header[1] = len;
-    } else {
-        header = Buffer.alloc(4);
-        header[0] = 0x8a;
-        header[1] = 126;
-        header.writeUInt16BE(len, 2);
-    }
-    return Buffer.concat([header, payload]);
-}
-
-/**
- * Streaming frame decoder. Accumulates incoming buffers and yields decoded
- * frames as they become complete.
- */
-class FrameDecoder {
-    constructor() {
-        this.buffer = Buffer.alloc(0);
-    }
-
-    /** Append new data and return an array of decoded frames. */
-    push(data) {
-        this.buffer = Buffer.concat([this.buffer, data]);
-        const frames = [];
-
-        while (true) {
-            const frame = this._tryDecode();
-            if (!frame) break;
-            frames.push(frame);
-        }
-
-        return frames;
-    }
-
-    _tryDecode() {
-        const buf = this.buffer;
-        if (buf.length < 2) return null;
-
-        const firstByte = buf[0];
-        const secondByte = buf[1];
-
-        const opcode = firstByte & 0x0f;
-        const isMasked = (secondByte & 0x80) !== 0;
-        let payloadLen = secondByte & 0x7f;
-        let offset = 2;
-
-        if (payloadLen === 126) {
-            if (buf.length < 4) return null;
-            payloadLen = buf.readUInt16BE(2);
-            offset = 4;
-        } else if (payloadLen === 127) {
-            if (buf.length < 10) return null;
-            payloadLen = Number(buf.readBigUInt64BE(2));
-            offset = 10;
-        }
-
-        const maskSize = isMasked ? 4 : 0;
-        const totalNeeded = offset + maskSize + payloadLen;
-        if (buf.length < totalNeeded) return null;
-
-        let payload;
-        if (isMasked) {
-            const mask = buf.subarray(offset, offset + 4);
-            payload = Buffer.alloc(payloadLen);
-            const masked = buf.subarray(offset + 4, offset + 4 + payloadLen);
-            for (let i = 0; i < payloadLen; i++) {
-                payload[i] = masked[i] ^ mask[i % 4];
-            }
-        } else {
-            payload = buf.subarray(offset, offset + payloadLen);
-        }
-
-        // Advance the buffer past this frame
-        this.buffer = buf.subarray(totalNeeded);
-
-        return { opcode, payload };
-    }
-}
-
-// ---------------------------------------------------------------------------
-// WebSocket connection tracking
-// ---------------------------------------------------------------------------
-
-/** @type {Set<import("node:net").Socket>} */
+/** @type {Set<import("ws").WebSocket>} */
 const wsClients = new Set();
 
-/** @type {Map<import("node:net").Socket, FrameDecoder>} */
-const wsDecoders = new Map();
-
-function sendToSocket(socket, jsonPayload) {
-    if (socket.writable) {
-        socket.write(encodeFrame(JSON.stringify(jsonPayload)));
+function sendToClient(ws, jsonPayload) {
+    if (ws.readyState === 1 /* OPEN */) {
+        ws.send(JSON.stringify(jsonPayload));
     }
 }
 
 function broadcast(jsonPayload) {
-    const frame = encodeFrame(JSON.stringify(jsonPayload));
-    for (const socket of wsClients) {
-        if (socket.writable) {
-            socket.write(frame);
+    const data = JSON.stringify(jsonPayload);
+    for (const ws of wsClients) {
+        if (ws.readyState === 1) {
+            ws.send(data);
         }
     }
-}
-
-function removeClient(socket) {
-    wsClients.delete(socket);
-    wsDecoders.delete(socket);
 }
 
 // ---------------------------------------------------------------------------
 // WebSocket message handler
 // ---------------------------------------------------------------------------
 
-function handleWsMessage(socket, message) {
+function handleWsMessage(ws, message) {
     let msg;
     try {
         msg = JSON.parse(message);
@@ -395,9 +239,9 @@ function handleWsMessage(socket, message) {
         case "status:connected": {
             // Send current diff data and comments on connect
             if (cachedDiff) {
-                sendToSocket(socket, { type: "diff:data", ...cachedDiff });
+                sendToClient(ws, { type: "diff:data", ...cachedDiff });
             }
-            sendToSocket(socket, {
+            sendToClient(ws, {
                 type: "comment:update",
                 threads: commentStore.getThreads(),
             });
@@ -412,13 +256,11 @@ function handleWsMessage(socket, message) {
                 msg.body ?? msg.text,
             );
 
-            // Broadcast updated threads to all clients
             broadcast({
                 type: "comment:update",
                 threads: commentStore.getThreads(),
             });
 
-            // Write event file for the extension host to pick up
             writeCommentEvent({
                 kind: "comment:new",
                 threadId,
@@ -638,57 +480,18 @@ function readBody(req) {
 // ---------------------------------------------------------------------------
 
 const server = createServer(handleRequest);
+const wss = new WebSocketServer({ server, path: "/ws" });
 
-server.on("upgrade", (req, socket, head) => {
-    const url = new URL(req.url, `http://127.0.0.1:${port}`);
-    if (url.pathname !== "/ws") {
-        socket.destroy();
-        return;
-    }
-
-    const ws = handleUpgrade(req, socket);
-    if (!ws) return;
-
-    const decoder = new FrameDecoder();
+wss.on("connection", (ws) => {
     wsClients.add(ws);
-    wsDecoders.set(ws, decoder);
 
-    // Feed any buffered data from the upgrade
-    if (head && head.length > 0) {
-        processIncoming(ws, decoder, head);
-    }
-
-    ws.on("data", (data) => {
-        processIncoming(ws, decoder, data);
+    ws.on("message", (data) => {
+        handleWsMessage(ws, data.toString("utf8"));
     });
 
-    ws.on("close", () => removeClient(ws));
-    ws.on("error", () => removeClient(ws));
+    ws.on("close", () => wsClients.delete(ws));
+    ws.on("error", () => wsClients.delete(ws));
 });
-
-function processIncoming(socket, decoder, data) {
-    const frames = decoder.push(data);
-
-    for (const frame of frames) {
-        switch (frame.opcode) {
-            case 0x1: // text
-                handleWsMessage(socket, frame.payload.toString("utf8"));
-                break;
-            case 0x8: // close
-                socket.write(encodeCloseFrame(1000));
-                socket.end();
-                removeClient(socket);
-                break;
-            case 0x9: // ping
-                socket.write(encodePongFrame(frame.payload));
-                break;
-            case 0xa: // pong — ignore
-                break;
-            default:
-                break;
-        }
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Shutdown polling — check state file for stopRequested
@@ -715,14 +518,13 @@ function gracefulShutdown() {
     clearInterval(vizPollTimer);
 
     // Close all WebSocket connections
-    for (const socket of wsClients) {
+    for (const ws of wsClients) {
         try {
-            socket.write(encodeCloseFrame(1001));
-            socket.end();
+            ws.close(1001, "Server shutting down");
         } catch { /* ignore */ }
     }
     wsClients.clear();
-    wsDecoders.clear();
+    wss.close();
 
     // Stop accepting new connections
     server.close(() => {

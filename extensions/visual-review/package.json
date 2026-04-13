@@ -1,0 +1,9 @@
+{
+  "name": "visual-review",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser-based diff viewer extension for Copilot CLI",
+  "dependencies": {
+    "ws": "^8.20.0"
+  }
+}
