@@ -251,3 +251,130 @@ export function isProcessAlive(pid) {
         return error?.code === "EPERM";
     }
 }
+
+// ---------------------------------------------------------------------------
+// Worker log files
+// ---------------------------------------------------------------------------
+
+export function getWorkerLogPath(serverId) {
+    const { root } = ensureStateDirs();
+    return path.join(root, "logs", `${serverId}.log`);
+}
+
+export function ensureLogDir() {
+    const logDir = path.join(getStateDirectory(), "logs");
+    mkdirSync(logDir, { recursive: true });
+    return logDir;
+}
+
+// ---------------------------------------------------------------------------
+// Worker health checking
+// ---------------------------------------------------------------------------
+
+/**
+ * Poll the worker state file and HTTP /health endpoint until the worker is
+ * confirmed healthy, or the timeout is exceeded.
+ *
+ * @param {object} opts
+ * @param {string} opts.stateFilePath - Path to the server state JSON file
+ * @param {string} opts.url - Base URL of the worker (e.g. http://127.0.0.1:PORT)
+ * @param {string} opts.serverId - Expected server ID (verified against /health response)
+ * @param {number} [opts.timeoutMs=8000] - Maximum time to wait
+ * @param {number} [opts.pollMs=300] - Polling interval
+ * @returns {Promise<{healthy: boolean, reason?: string}>}
+ */
+export async function waitForWorkerHealth({
+    stateFilePath,
+    url,
+    serverId,
+    timeoutMs = 8000,
+    pollMs = 300,
+}) {
+    const deadline = Date.now() + timeoutMs;
+
+    while (Date.now() < deadline) {
+        // Check if the worker process is still alive via state file
+        let state;
+        try {
+            state = await readJsonFile(stateFilePath);
+        } catch {
+            // Transient read/parse error — retry
+        }
+
+        if (state) {
+            // Worker wrote an error status — bail early
+            if (state.status === "error") {
+                return {
+                    healthy: false,
+                    reason: `Worker reported error: ${state.error ?? "unknown"}`,
+                };
+            }
+
+            // Worker process died before reaching "running" state
+            if (state.worker?.pid && !isProcessAlive(state.worker.pid)) {
+                return {
+                    healthy: false,
+                    reason: `Worker process (PID ${state.worker.pid}) exited prematurely`,
+                };
+            }
+
+            // Worker is running — verify via HTTP
+            if (state.status === "running") {
+                const httpResult = await httpHealthCheck(url, serverId);
+                if (httpResult.healthy) {
+                    return { healthy: true };
+                }
+                // HTTP not yet responsive — keep polling briefly
+            }
+        }
+
+        await sleep(pollMs);
+    }
+
+    return { healthy: false, reason: "Timed out waiting for worker to become healthy" };
+}
+
+/**
+ * HTTP GET to /health, verifying the expected serverId.
+ * @param {string} baseUrl
+ * @param {string} expectedServerId
+ * @returns {Promise<{healthy: boolean, reason?: string}>}
+ */
+export async function httpHealthCheck(baseUrl, expectedServerId) {
+    const { get } = await import("node:http");
+
+    return new Promise((resolve) => {
+        const req = get(`${baseUrl}/health`, { timeout: 2000 }, (res) => {
+            let body = "";
+            res.on("data", (chunk) => { body += chunk; });
+            res.on("end", () => {
+                try {
+                    const data = JSON.parse(body);
+                    if (data.serverId !== expectedServerId) {
+                        resolve({
+                            healthy: false,
+                            reason: `Server ID mismatch: expected ${expectedServerId}, got ${data.serverId}`,
+                        });
+                        return;
+                    }
+                    resolve({ healthy: true });
+                } catch {
+                    resolve({ healthy: false, reason: "Invalid health response" });
+                }
+            });
+        });
+
+        req.on("error", () => {
+            resolve({ healthy: false, reason: "HTTP connection failed" });
+        });
+
+        req.on("timeout", () => {
+            req.destroy();
+            resolve({ healthy: false, reason: "HTTP health check timed out" });
+        });
+    });
+}
+
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}

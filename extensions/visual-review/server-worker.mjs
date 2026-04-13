@@ -13,6 +13,7 @@ import {
     mkdirSync,
     readdirSync,
     readFileSync,
+    renameSync,
     unlinkSync,
     writeFileSync,
 } from "node:fs";
@@ -66,7 +67,16 @@ function readJson(filePath) {
 }
 
 function writeJson(filePath, value) {
-    writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+    const content = `${JSON.stringify(value, null, 2)}\n`;
+    const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`;
+    try {
+        writeFileSync(tempPath, content, "utf8");
+        renameSync(tempPath, filePath);
+    } catch {
+        // Fallback: direct write if rename fails (e.g. cross-device on Windows)
+        try { unlinkSync(tempPath); } catch { /* ignore */ }
+        writeFileSync(filePath, content, "utf8");
+    }
 }
 
 function ensureDir(dirPath) {
@@ -82,6 +92,34 @@ if (!stateFilePath) {
     process.stderr.write("server-worker requires a state file path argument.\n");
     process.exit(1);
 }
+
+// ---------------------------------------------------------------------------
+// Early fatal handlers — registered before anything else can throw
+// ---------------------------------------------------------------------------
+
+function writeFatalState(error) {
+    try {
+        const current = readJson(stateFilePath);
+        current.status = "error";
+        current.error = String(error?.message ?? error);
+        current.updatedAt = nowIso();
+        writeJson(stateFilePath, current);
+    } catch {
+        // Best-effort — state file may not be readable yet
+    }
+}
+
+process.on("uncaughtException", (err) => {
+    process.stderr.write(`[visual-review worker] Uncaught exception: ${err?.stack ?? err}\n`);
+    writeFatalState(err);
+    process.exit(1);
+});
+
+process.on("unhandledRejection", (reason) => {
+    process.stderr.write(`[visual-review worker] Unhandled rejection: ${reason?.stack ?? reason}\n`);
+    writeFatalState(reason);
+    process.exit(1);
+});
 
 // ---------------------------------------------------------------------------
 // Read initial state
@@ -479,6 +517,16 @@ function pollVisualizations() {
 function handleRequest(req, res) {
     const url = new URL(req.url, `http://127.0.0.1:${port}`);
 
+    // ---- Health check (verified by extension host) ----
+    if (url.pathname === "/health" && req.method === "GET") {
+        return sendJson(res, 200, {
+            status: "ok",
+            serverId,
+            pid: process.pid,
+            uptime: process.uptime(),
+        });
+    }
+
     // ---- API routes ----
     if (url.pathname === "/api/diff" && req.method === "GET") {
         return sendJson(res, 200, cachedDiff ?? { diff: "", files: [], scope, base });
@@ -713,19 +761,37 @@ function updateStateFile(overrides) {
 // ---------------------------------------------------------------------------
 
 async function start() {
-    // Generate diff on startup
-    await generateDiff();
-
-    // Start HTTP server on loopback only
-    server.listen(port, "127.0.0.1", () => {
-        updateStateFile({ status: "running", startedAt: nowIso() });
-    });
-
+    // Attach error handler BEFORE listen to catch bind failures
     server.on("error", (err) => {
         process.stderr.write(`Server error: ${err.message}\n`);
         updateStateFile({ status: "error", error: err.message });
         process.exit(1);
     });
+
+    // Start HTTP server first so health checks pass quickly.
+    // Diff generation happens in the background afterward.
+    await new Promise((resolve, reject) => {
+        server.once("error", reject);
+        server.listen(port, "127.0.0.1", () => {
+            server.removeListener("error", reject);
+            resolve();
+        });
+    });
+
+    updateStateFile({ status: "running", startedAt: nowIso() });
+
+    // Generate diff in the background — broadcast to any connected clients when ready
+    generateDiff()
+        .then(() => {
+            if (cachedDiff) {
+                broadcast({ type: "diff:data", ...cachedDiff });
+            }
+        })
+        .catch((err) => {
+            process.stderr.write(`Diff generation failed: ${err.message}\n`);
+            cachedDiff = { diff: "", files: [], scope, base, error: err.message };
+            broadcast({ type: "diff:data", ...cachedDiff });
+        });
 
     // Poll for shutdown requests
     shutdownTimer = setInterval(pollShutdown, SHUTDOWN_POLL_MS);
@@ -737,4 +803,8 @@ async function start() {
     vizPollTimer = setInterval(pollVisualizations, VIZ_POLL_MS);
 }
 
-start();
+start().catch((err) => {
+    process.stderr.write(`[visual-review worker] Fatal startup error: ${err?.stack ?? err}\n`);
+    writeFatalState(err);
+    process.exit(1);
+});

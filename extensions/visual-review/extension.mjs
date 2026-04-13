@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { openSync, closeSync, readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,14 +7,18 @@ import {
     createEventId,
     createServerId,
     ensureStateDirs,
+    ensureLogDir,
     findFreePort,
     formatError,
     getServerStatePath,
+    getWorkerLogPath,
+    httpHealthCheck,
     isProcessAlive,
     listJsonFilePaths,
     nowIso,
     openBrowser,
     readJsonFile,
+    waitForWorkerHealth,
     writeJsonAtomic,
 } from "./common.mjs";
 
@@ -137,72 +141,121 @@ const session = await joinSession({
                         activeServerId = null;
                     }
 
-                    // Find a free port
-                    const port = await findFreePort(requestedPort);
-                    const url = `http://127.0.0.1:${port}`;
+                    const maxAttempts = 2;
+                    let lastReason = "";
 
-                    // Prepare server state (worker will generate the diff itself)
-                    const serverId = createServerId();
-                    const serverStatePath = getServerStatePath(serverId);
-                    const createdAt = nowIso();
+                    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+                        const port = await findFreePort(requestedPort);
+                        const url = `http://127.0.0.1:${port}`;
 
-                    const serverState = {
-                        schemaVersion: 1,
-                        serverId,
-                        sessionId: invocation.sessionId,
-                        createdAt,
-                        updatedAt: createdAt,
-                        status: "active",
-                        stopRequested: false,
-                        port,
-                        cwd,
-                        theme,
-                        scope,
-                        base,
-                        url,
-                        worker: {
-                            pid: null,
-                            startedAt: null,
-                        },
-                        connectedClients: 0,
-                    };
+                        const serverId = createServerId();
+                        const serverStatePath = getServerStatePath(serverId);
+                        const createdAt = nowIso();
 
-                    await writeJsonAtomic(serverStatePath, serverState);
-
-                    // Spawn the server worker as a detached process
-                    const child = spawn(
-                        process.execPath,
-                        [workerFilePath, serverStatePath],
-                        {
+                        const serverState = {
+                            schemaVersion: 1,
+                            serverId,
+                            sessionId: invocation.sessionId,
+                            createdAt,
+                            updatedAt: createdAt,
+                            status: "active",
+                            stopRequested: false,
+                            port,
                             cwd,
-                            detached: true,
-                            stdio: "ignore",
-                            windowsHide: true,
-                        },
-                    );
-                    child.unref();
+                            theme,
+                            scope,
+                            base,
+                            url,
+                            worker: {
+                                pid: null,
+                                startedAt: null,
+                            },
+                            connectedClients: 0,
+                        };
 
-                    serverState.worker = {
-                        pid: child.pid ?? null,
-                        startedAt: nowIso(),
-                    };
-                    serverState.updatedAt = nowIso();
-                    await writeJsonAtomic(serverStatePath, serverState);
+                        await writeJsonAtomic(serverStatePath, serverState);
 
-                    activeServerId = serverId;
+                        // Spawn the worker with stderr redirected to a log file
+                        ensureLogDir();
+                        const logPath = getWorkerLogPath(serverId);
+                        const logFd = openSync(logPath, "a");
 
-                    // Open the browser after a brief delay for server startup
-                    setTimeout(() => openBrowser(url), 800);
+                        const child = spawn(
+                            process.execPath,
+                            [workerFilePath, serverStatePath],
+                            {
+                                cwd,
+                                detached: true,
+                                stdio: ["ignore", "ignore", logFd],
+                                windowsHide: true,
+                            },
+                        );
+                        child.unref();
+                        closeSync(logFd);
 
-                    ensureEventMonitor();
+                        serverState.worker = {
+                            pid: child.pid ?? null,
+                            startedAt: nowIso(),
+                        };
+                        serverState.updatedAt = nowIso();
+                        await writeJsonAtomic(serverStatePath, serverState);
 
-                    return success(
-                        [
-                            `Visual review server started: ${url}`,
-                            `Server ID: ${serverId} | Scope: ${scope}${scope === "branch" ? ` (base: ${base})` : ""} | Theme: ${theme}`,
-                            `The browser should open automatically. If not, open: ${url}`,
-                        ].join("\n"),
-                    );
+                        // Wait for the worker to become healthy
+                        const health = await waitForWorkerHealth({
+                            stateFilePath: serverStatePath,
+                            url,
+                            serverId,
+                            timeoutMs: 8000,
+                        });
+
+                        if (health.healthy) {
+                            activeServerId = serverId;
+
+                            openBrowser(url);
+                            ensureEventMonitor();
+
+                            return success(
+                                [
+                                    `Visual review server started: ${url}`,
+                                    `Server ID: ${serverId} | Scope: ${scope}${scope === "branch" ? ` (base: ${base})` : ""} | Theme: ${theme}`,
+                                    `The browser should open automatically. If not, open: ${url}`,
+                                ].join("\n"),
+                            );
+                        }
+
+                        // Unhealthy — log the reason and try to clean up
+                        lastReason = health.reason ?? "Unknown failure";
+                        await session.log(
+                            `visual-review: worker attempt ${attempt + 1} failed: ${lastReason}`,
+                            { level: "warning", ephemeral: true },
+                        );
+
+                        // Kill the zombie worker if it's somehow still alive
+                        if (child.pid && isProcessAlive(child.pid)) {
+                            try { process.kill(child.pid); } catch { /* ignore */ }
+                        }
+                    }
+
+                    // All attempts failed — include diagnostic info
+                    const diagnosticLines = [
+                        `Failed to start visual review after ${maxAttempts} attempts.`,
+                        `Last failure: ${lastReason}`,
+                    ];
+
+                    // Try to include worker stderr log if available
+                    try {
+                        const logContent = readFileSync(
+                            getWorkerLogPath(createServerId()),
+                            "utf8",
+                        );
+                        if (logContent.trim()) {
+                            diagnosticLines.push(`Worker log:\n${logContent.slice(-500)}`);
+                        }
+                    } catch {
+                        // No log available
+                    }
+
+                    return failure(diagnosticLines.join("\n"));
                 } catch (error) {
                     return failure(`Failed to start visual review: ${formatError(error)}`);
                 }
@@ -301,17 +354,26 @@ const session = await joinSession({
                             ? `pid ${workerPid} (${alive ? "running" : "missing"})`
                             : "not started";
 
-                        lines.push(
-                            [
-                                `- ${server.serverId} [${server.status}]`,
-                                `  url: ${server.url}`,
-                                `  scope: ${server.scope}${server.scope === "branch" ? ` (base: ${server.base})` : ""}`,
-                                `  theme: ${server.theme}`,
-                                `  clients: ${server.connectedClients ?? 0}`,
-                                `  worker: ${workerStatus}`,
-                                `  created: ${server.createdAt}`,
-                            ].join("\n"),
-                        );
+                        const serverLines = [
+                            `- ${server.serverId} [${server.status}]`,
+                            `  url: ${server.url}`,
+                            `  scope: ${server.scope}${server.scope === "branch" ? ` (base: ${server.base})` : ""}`,
+                            `  theme: ${server.theme}`,
+                            `  clients: ${server.connectedClients ?? 0}`,
+                            `  worker: ${workerStatus}`,
+                            `  created: ${server.createdAt}`,
+                        ];
+
+                        // Show error info for failed workers
+                        if (server.error) {
+                            serverLines.push(`  error: ${server.error}`);
+                        }
+                        if (workerPid && !alive && server.status !== "stopped") {
+                            const logPath = getWorkerLogPath(server.serverId);
+                            serverLines.push(`  log: ${logPath}`);
+                        }
+
+                        lines.push(serverLines.join("\n"));
                     }
 
                     if (pendingEvents.length > 0) {
