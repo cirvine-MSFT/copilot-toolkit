@@ -292,6 +292,32 @@ function handleWsMessage(ws, message) {
             break;
         }
 
+        case "comment:batch": {
+            if (!Array.isArray(msg.comments)) break;
+            for (const comment of msg.comments) {
+                const threadId = commentStore.addThread(
+                    comment.filePath,
+                    comment.line ?? comment.lineNumber,
+                    comment.side ?? "right",
+                    comment.body ?? comment.text,
+                );
+
+                writeCommentEvent({
+                    kind: "comment:new",
+                    threadId,
+                    filePath: comment.filePath,
+                    lineNumber: comment.line ?? comment.lineNumber,
+                    endLine: comment.endLine,
+                    commentText: comment.body ?? comment.text,
+                });
+            }
+            broadcast({
+                type: "comment:update",
+                threads: commentStore.getThreads(),
+            });
+            break;
+        }
+
         default:
             break;
     }

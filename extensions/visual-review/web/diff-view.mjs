@@ -15,6 +15,12 @@ export class DiffView {
     #threads = new Map();
     /** Currently-open comment form element, if any. */
     #openForm = null;
+    /** Multi-line selection state: { startCell, startLine, side, filePath } */
+    #rangeStart = null;
+    /** Queued (pending) comments for batch mode */
+    #pendingComments = [];
+    /** Whether to send comments immediately or queue them */
+    #batchMode = false;
 
     /**
      * @param {HTMLElement} container — the #diffContainer element
@@ -126,12 +132,49 @@ export class DiffView {
             cell.classList.add('vr-line-gutter');
             cell.addEventListener('mouseenter', () => this.#showTrigger(cell));
             cell.addEventListener('mouseleave', (e) => {
-                // Don't hide if we're moving into the trigger button itself
                 const related = e.relatedTarget;
                 if (related && related.closest('.vr-add-comment-btn')) return;
                 this.#hideTrigger(cell);
             });
+            // Click on line number to start/extend range selection
+            cell.addEventListener('click', (e) => {
+                if (e.target.closest('.vr-add-comment-btn')) return;
+                this.#handleLineClick(cell, e.shiftKey);
+            });
         }
+    }
+
+    #handleLineClick(cell, isShift) {
+        const { filePath, line, side } = this.#resolveLineInfo(cell, cell.closest('tr'));
+        if (!line) return;
+
+        if (isShift && this.#rangeStart && this.#rangeStart.filePath === filePath && this.#rangeStart.side === side) {
+            // Extend the range — open form for startLine-endLine
+            const startLine = Math.min(this.#rangeStart.startLine, line);
+            const endLine = Math.max(this.#rangeStart.startLine, line);
+            this.#highlightRange(filePath, startLine, endLine, side);
+            this.#openCommentForm(cell, { startLine, endLine });
+        } else {
+            // Start a new range
+            this.#clearRangeHighlight();
+            this.#rangeStart = { startCell: cell, startLine: line, side, filePath };
+            cell.closest('tr')?.classList.add('vr-range-selected');
+        }
+    }
+
+    #highlightRange(filePath, startLine, endLine, side) {
+        this.#clearRangeHighlight();
+        const cells = this.#container.querySelectorAll('.d2h-code-linenumber');
+        for (const cell of cells) {
+            const info = this.#resolveLineInfo(cell, cell.closest('tr'));
+            if (info.filePath === filePath && info.side === side && info.line >= startLine && info.line <= endLine) {
+                cell.closest('tr')?.classList.add('vr-range-selected');
+            }
+        }
+    }
+
+    #clearRangeHighlight() {
+        this.#container.querySelectorAll('.vr-range-selected').forEach(el => el.classList.remove('vr-range-selected'));
     }
 
     #showTrigger(cell) {
@@ -159,14 +202,16 @@ export class DiffView {
 
     // ── Comment form ──────────────────────────────────────────────
 
-    #openCommentForm(lineNumCell) {
-        // Close any existing form
+    #openCommentForm(lineNumCell, range = null) {
         this.#closeCommentForm();
 
         const tr = lineNumCell.closest('tr');
         if (!tr) return;
 
         const { filePath, line, side } = this.#resolveLineInfo(lineNumCell, tr);
+        const startLine = range?.startLine ?? line;
+        const endLine = range?.endLine ?? line;
+        const lineLabel = startLine === endLine ? `L${startLine}` : `L${startLine}-L${endLine}`;
 
         const colspan = this.#outputFormat === 'side-by-side' ? 4 : 3;
         const formRow = document.createElement('tr');
@@ -186,12 +231,17 @@ export class DiffView {
                         <div class="vr-comment-tab-nav">
                             <button class="vr-comment-tab active" data-write>Write</button>
                             <button class="vr-comment-tab" data-preview>Preview</button>
+                            <span class="vr-comment-line-label">${lineLabel}</span>
                         </div>
-                        <textarea class="vr-comment-textarea" placeholder="Leave a comment" rows="4"></textarea>
+                        <textarea class="vr-comment-textarea" placeholder="Leave a comment (Ctrl+Enter to submit)" rows="4"></textarea>
                         <div class="vr-comment-preview hidden"></div>
                         <div class="vr-comment-actions">
+                            <label class="vr-batch-toggle">
+                                <input type="checkbox" class="vr-batch-checkbox" ${this.#batchMode ? 'checked' : ''}>
+                                <span>Queue for batch</span>
+                            </label>
                             <button class="vr-btn vr-btn-cancel">Cancel</button>
-                            <button class="vr-btn vr-btn-primary">Comment</button>
+                            <button class="vr-btn vr-btn-primary">${this.#batchMode ? 'Add to pending' : 'Comment'}</button>
                         </div>
                     </div>
                 </div>
@@ -200,9 +250,16 @@ export class DiffView {
         tr.after(formRow);
         this.#openForm = formRow;
 
-        // Focus textarea
         const textarea = formRow.querySelector('.vr-comment-textarea');
         textarea.focus();
+
+        // Batch toggle
+        const batchCheckbox = formRow.querySelector('.vr-batch-checkbox');
+        const submitBtn = formRow.querySelector('.vr-btn-primary');
+        batchCheckbox.addEventListener('change', () => {
+            this.#batchMode = batchCheckbox.checked;
+            submitBtn.textContent = this.#batchMode ? 'Add to pending' : 'Comment';
+        });
 
         // Tab switching (Write / Preview)
         const tabNav = formRow.querySelector('.vr-comment-tab-nav');
@@ -225,14 +282,18 @@ export class DiffView {
 
         // Cancel
         formRow.querySelector('.vr-btn-cancel').addEventListener('click', () => {
+            this.#clearRangeHighlight();
+            this.#rangeStart = null;
             this.#closeCommentForm();
         });
 
         // Submit
-        formRow.querySelector('.vr-btn-primary').addEventListener('click', () => {
+        submitBtn.addEventListener('click', () => {
             const body = textarea.value.trim();
             if (!body) return;
-            this.#submitComment(filePath, line, side, body, tr);
+            this.#submitComment(filePath, startLine, endLine, side, body, tr);
+            this.#clearRangeHighlight();
+            this.#rangeStart = null;
             this.#closeCommentForm();
         });
 
@@ -241,7 +302,9 @@ export class DiffView {
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                 const body = textarea.value.trim();
                 if (!body) return;
-                this.#submitComment(filePath, line, side, body, tr);
+                this.#submitComment(filePath, startLine, endLine, side, body, tr);
+                this.#clearRangeHighlight();
+                this.#rangeStart = null;
                 this.#closeCommentForm();
             }
         });
@@ -252,12 +315,14 @@ export class DiffView {
         this.#openForm = null;
     }
 
-    #submitComment(filePath, line, side, body, anchorRow) {
+    #submitComment(filePath, startLine, endLine, side, body, anchorRow) {
         const threadId = crypto.randomUUID();
+        const lineLabel = startLine === endLine ? `L${startLine}` : `L${startLine}-L${endLine}`;
         const thread = {
             id: threadId,
             filePath,
-            line,
+            line: startLine,
+            endLine,
             side,
             comments: [{ author: 'You', body, timestamp: 'just now' }],
         };
@@ -267,15 +332,48 @@ export class DiffView {
         this.#insertThreadRow(thread, anchorRow);
         this.#updateFileTreeCommentCounts();
 
-        // Send to server
-        this.#ws.send({
+        const payload = {
             type: 'comment:new',
             threadId,
             filePath,
-            line,
+            line: startLine,
+            endLine: endLine !== startLine ? endLine : undefined,
             side,
             body,
+        };
+
+        if (this.#batchMode) {
+            this.#pendingComments.push(payload);
+            this.#updatePendingBadge();
+        } else {
+            this.#ws.send(payload);
+        }
+    }
+
+    /** Send all queued comments as a single batch. */
+    submitPendingComments() {
+        if (this.#pendingComments.length === 0) return;
+        this.#ws.send({
+            type: 'comment:batch',
+            comments: this.#pendingComments,
         });
+        this.#pendingComments = [];
+        this.#updatePendingBadge();
+    }
+
+    /** Get pending comment count. */
+    get pendingCount() { return this.#pendingComments.length; }
+
+    #updatePendingBadge() {
+        const badge = document.getElementById('pendingBadge');
+        if (!badge) return;
+        if (this.#pendingComments.length > 0) {
+            badge.textContent = `${this.#pendingComments.length} pending`;
+            badge.classList.add('has-pending');
+        } else {
+            badge.textContent = '';
+            badge.classList.remove('has-pending');
+        }
     }
 
     // ── Thread display ────────────────────────────────────────────

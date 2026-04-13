@@ -606,6 +606,11 @@ del.d2h-change {
     display: flex;
     gap: 12px;
     padding: 12px 16px;
+    /* Keep form within viewport even when diff table is wider */
+    max-width: calc(100vw - 300px);
+    min-width: 400px;
+    position: sticky;
+    left: 0;
 }
 
 .vr-comment-avatar {
@@ -699,6 +704,10 @@ del.d2h-change {
     display: flex;
     flex-direction: column;
     gap: 0;
+    max-width: calc(100vw - 300px);
+    min-width: 400px;
+    position: sticky;
+    left: 0;
 }
 
 .vr-comment {
@@ -869,6 +878,60 @@ del.d2h-change {
 /* ── Diff panel container spacing ────────────────────────────── */
 
 #diffContainer { max-width: 100%; overflow-x: auto; }
+
+/* ── Multi-line range selection highlight ─────────────────────── */
+
+.vr-range-selected td {
+    background-color: rgba(31, 111, 235, 0.08) !important;
+}
+.vr-range-selected .d2h-code-linenumber {
+    background-color: rgba(31, 111, 235, 0.15) !important;
+}
+
+/* ── Comment line label ──────────────────────────────────────── */
+
+.vr-comment-line-label {
+    margin-left: auto;
+    font-size: 11px;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    color: var(--color-fg-muted);
+    padding: 4px 8px;
+    background: var(--color-bg-muted);
+    border-radius: 4px;
+    align-self: center;
+}
+
+/* ── Batch comment toggle ────────────────────────────────────── */
+
+.vr-batch-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--color-fg-muted);
+    cursor: pointer;
+    margin-right: auto;
+    user-select: none;
+}
+.vr-batch-toggle input { cursor: pointer; }
+
+/* ── Pending comments badge ──────────────────────────────────── */
+
+.vr-pending-badge {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-fg-default);
+    background: var(--color-attention-fg);
+    border-radius: 10px;
+    padding: 2px 8px;
+    line-height: 1.4;
+}
+.vr-pending-badge:empty { display: none; }
+
+.vr-btn-submit-all {
+    font-size: 13px;
+    padding: 4px 12px;
+}
 
 /* ── Responsive ──────────────────────────────────────────────── */
 

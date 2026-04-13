@@ -68,3 +68,17 @@ sidebarToggle.addEventListener('click', () => {
     sidebar.classList.toggle('collapsed');
     document.querySelector('.vr-main').classList.toggle('sidebar-collapsed');
 });
+
+// ── Submit all pending comments ───────────────────────────────
+const submitAllBtn = document.getElementById('submitAllBtn');
+const pendingBadge = document.getElementById('pendingBadge');
+
+// Watch for pending badge changes to show/hide the submit button
+const observer = new MutationObserver(() => {
+    submitAllBtn.classList.toggle('hidden', !pendingBadge.classList.contains('has-pending'));
+});
+observer.observe(pendingBadge, { attributes: true, attributeFilter: ['class'] });
+
+submitAllBtn.addEventListener('click', () => {
+    diffView.submitPendingComments();
+});
