@@ -9,7 +9,6 @@ import {
     ensureStateDirs,
     findFreePort,
     formatError,
-    getDiffOutput,
     getServerStatePath,
     isProcessAlive,
     listJsonFilePaths,
@@ -125,29 +124,24 @@ const session = await joinSession({
                     // Stop an existing server if one is active
                     if (activeServerId) {
                         const existingPath = getServerStatePath(activeServerId);
-                        const existing = await readJsonFile(existingPath);
-                        if (existing && existing.status === "active") {
-                            existing.stopRequested = true;
-                            existing.updatedAt = nowIso();
-                            await writeJsonAtomic(existingPath, existing);
+                        try {
+                            const existing = await readJsonFile(existingPath);
+                            if (existing && existing.status === "active") {
+                                existing.stopRequested = true;
+                                existing.updatedAt = nowIso();
+                                await writeJsonAtomic(existingPath, existing);
+                            }
+                        } catch {
+                            // State file may not exist anymore — that's fine
                         }
-
                         activeServerId = null;
-                    }
-
-                    // Get the diff to verify there's something to show
-                    const diff = await getDiffOutput(cwd, scope, base);
-                    if (!diff || !diff.trim()) {
-                        return failure(
-                            `No differences found for scope "${scope}"${scope === "branch" ? ` (base: ${base})` : ""}. Nothing to review.`,
-                        );
                     }
 
                     // Find a free port
                     const port = await findFreePort(requestedPort);
                     const url = `http://127.0.0.1:${port}`;
 
-                    // Prepare server state
+                    // Prepare server state (worker will generate the diff itself)
                     const serverId = createServerId();
                     const serverStatePath = getServerStatePath(serverId);
                     const createdAt = nowIso();
@@ -198,7 +192,7 @@ const session = await joinSession({
                     activeServerId = serverId;
 
                     // Open the browser after a brief delay for server startup
-                    setTimeout(() => openBrowser(url), 500);
+                    setTimeout(() => openBrowser(url), 800);
 
                     ensureEventMonitor();
 
@@ -206,7 +200,7 @@ const session = await joinSession({
                         [
                             `Visual review server started: ${url}`,
                             `Server ID: ${serverId} | Scope: ${scope}${scope === "branch" ? ` (base: ${base})` : ""} | Theme: ${theme}`,
-                            `The browser should open automatically. Use visual_review_stop to shut it down.`,
+                            `The browser should open automatically. If not, open: ${url}`,
                         ].join("\n"),
                     );
                 } catch (error) {
