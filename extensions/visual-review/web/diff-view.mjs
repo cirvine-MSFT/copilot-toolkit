@@ -539,10 +539,10 @@ function escapeHtml(text) {
     return el.innerHTML;
 }
 
-/** Shorten path to just the filename plus one parent dir. */
+/** Shorten path — show filename with enough context to be unique. */
 function shortPath(fullPath) {
     const parts = fullPath.split('/');
-    return parts.length > 2
-        ? `…/${parts.slice(-2).join('/')}`
-        : fullPath;
+    if (parts.length <= 2) return fullPath;
+    // Show the last 2 segments (dir/file) for brevity
+    return parts.slice(-2).join('/');
 }
