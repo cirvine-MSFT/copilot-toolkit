@@ -8,6 +8,7 @@ Personal collection of [GitHub Copilot CLI](https://docs.github.com/en/copilot/u
 |-----------|---------------|-------------|
 | **ado-pr-watcher** | `pr_watcher_start`, `pr_watcher_list`, `pr_watcher_stop` | Watches Azure DevOps pull requests for reviewer activity, comment threads, negative votes, and blocking policy failures. Injects follow-up prompts so the Copilot agent can act as the PR author. |
 | **ado-build-watcher** | `build_watcher_start`, `build_watcher_list`, `build_watcher_stop` | Watches Azure DevOps build/pipeline runs and notifies the session when they complete or fail, enabling automatic diagnosis and next-step continuation. |
+| **visual-review** | `visual_review_start`, `visual_review_stop`, `visual_review_status`, `visual_review_send_visualization` | Launches a browser-based visual diff reviewer with GitHub-style inline commenting. Comments flow back to the Copilot CLI session in real time via WebSocket, enabling interactive code review without leaving the terminal. |
 
 ### Quick start
 
@@ -32,6 +33,70 @@ Stop the PR watcher
 
 You don't call the tools directly — just describe what you want in natural language and Copilot invokes the right tool. The watchers run as detached background processes and inject events back into your session when something happens.
 
+### Visual Review
+
+The visual-review extension opens a browser-based diff viewer connected to your Copilot CLI session. It shows your changes with GitHub-style inline commenting — you leave comments in the browser, Copilot responds, and replies appear inline.
+
+#### How to use
+
+Just describe what you want in natural language:
+
+```
+# Review changes on current branch vs main
+Review my changes visually
+
+# Review staged changes
+Show me a visual review of my staged changes
+
+# Review changes against a specific branch
+Open visual review comparing against develop
+```
+
+Or use explicit tool parameters:
+
+```
+# Start with specific options
+Start visual review with scope=branch base=main theme=dark
+
+# Check status
+What's the visual review status?
+
+# Send a diagram to the viz panel
+Send this architecture diagram to the visual review
+```
+
+#### What you see
+
+The browser UI has two panels:
+
+1. **Files Changed** — A GitHub-style diff view with:
+   - Side-by-side or unified diff layout
+   - Syntax highlighting
+   - File tree sidebar for navigation
+   - **Inline commenting** — hover over any line to add a comment
+   - Comments flow back to your CLI session, and Copilot's replies appear inline
+
+2. **Visualizations** — A panel for Mermaid diagrams showing:
+   - Architecture impact diagrams
+   - Sequence diagrams
+   - Data flow visualizations
+   - Any Mermaid diagram sent via the `visual_review_send_visualization` tool
+
+#### Comment workflow
+
+1. In the browser, hover over a line number → click the blue "+" button
+2. Type your comment and click "Comment"
+3. The comment appears in your Copilot CLI session as a follow-up prompt
+4. Copilot reads the comment, understands the context, and responds
+5. The response appears inline in the browser as a threaded reply
+6. Continue the conversation — each reply goes back and forth in real time
+
+#### Requirements
+
+- A modern web browser (Chrome, Edge, Firefox, Safari)
+- Git repository with changes to review
+- No additional tools beyond what the CLI extensions already need
+
 ### How watchers work
 
 1. **Start** — Copilot calls `pr_watcher_start` or `build_watcher_start`, which spawns a detached worker process
@@ -45,7 +110,7 @@ Extensions are **not** distributed through the plugin system — they require th
 
 | What | How installed | What this repo provides |
 |------|--------------|------------------------|
-| **Extensions** | Install scripts below | `ado-pr-watcher`, `ado-build-watcher` |
+| **Extensions** | Install scripts below | `ado-pr-watcher`, `ado-build-watcher`, `visual-review` |
 | **Skills & agents** | `copilot plugin install` | None yet (placeholders) |
 
 **PowerShell (Windows):**
@@ -90,6 +155,7 @@ Remove the installed extension directories:
 ```bash
 rm -rf ~/.copilot/extensions/ado-pr-watcher
 rm -rf ~/.copilot/extensions/ado-build-watcher
+rm -rf ~/.copilot/extensions/visual-review
 rm -rf ~/.copilot/extensions/lib
 ```
 
@@ -116,6 +182,8 @@ copilot plugin install cirvine-msft/copilot-toolkit
 - [GitHub Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line)
 - [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) with the Azure DevOps extension
 - Azure DevOps access for the repos/pipelines you want to watch
+
+> **Note:** The visual-review extension only requires a web browser and git. It does not need Azure CLI or Azure DevOps access.
 
 ### Azure CLI setup
 

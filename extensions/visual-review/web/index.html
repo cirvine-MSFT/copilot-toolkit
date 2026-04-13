@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visual Review — Copilot CLI</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- diff2html CSS from CDN -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/diff2html@3.4.48/bundles/css/diff2html.min.css">
+</head>
+<body>
+    <header class="vr-header">
+        <div class="vr-header-left">
+            <svg class="vr-logo" viewBox="0 0 16 16" width="24" height="24" fill="currentColor">
+                <path d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38
+                         0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95
+                         0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27
+                         -.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82
+                         1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66
+                         0 0-.42-.77-1.22-.8 0 0-.78-.01-.05.48 0 0 .52.24.89 1.15 0 0 .46 1.43 2.69.94
+                         .01.67.01 1.18.01 1.35 0 .21-.15.46-.55.38A8.013 8.013 0 0 1 0 8c0-4.42 3.58-8 8-8Z"/>
+            </svg>
+            <h1>Visual Review</h1>
+            <span class="vr-connection-status" id="connectionStatus">
+                <span class="vr-status-dot"></span>
+                <span class="vr-status-text">Connecting…</span>
+            </span>
+        </div>
+        <nav class="vr-tabs">
+            <button class="vr-tab active" data-panel="diff">
+                <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+                    <path d="M8.75 1.75V5H12a.75.75 0 0 1 0 1.5H8.75v3.25a.75.75 0 0 1-1.5
+                             0V6.5H4A.75.75 0 0 1 4 5h3.25V1.75a.75.75 0 0 1 1.5 0Z"/>
+                    <path d="M13.25 0a.75.75 0 0 1 .75.75v1.5h1.5a.75.75 0 0 1 0
+                             1.5h-1.5v1.5a.75.75 0 0 1-1.5 0v-1.5h-1.5a.75.75 0 0 1
+                             0-1.5h1.5V.75a.75.75 0 0 1 .75-.75Z" opacity="0"/>
+                </svg>
+                Files changed
+            </button>
+            <button class="vr-tab" data-panel="viz">
+                <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+                    <path d="M1.5 1.75V13.5h13.75a.75.75 0 0 1 0 1.5H.75a.75.75 0 0
+                             1-.75-.75V1.75a.75.75 0 0 1 1.5 0Zm14.28 2.53-5.25 5.25a.75.75
+                             0 0 1-1.06 0L7 7.06 4.28 9.78a.751.751 0 0 1-1.042-.018.751.751
+                             0 0 1-.018-1.042l3.25-3.25a.75.75 0 0 1 1.06 0L10 7.94l4.72-4.72a.751.751
+                             0 0 1 1.042.018.751.751 0 0 1 .018 1.042Z"/>
+                </svg>
+                Visualizations
+            </button>
+        </nav>
+        <div class="vr-header-right">
+            <span class="vr-file-count" id="fileCount"></span>
+            <button class="vr-btn vr-btn-outline" id="viewToggle" title="Toggle split/unified view">
+                <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+                    <path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16
+                             1.75v12.5A1.75 1.75 0 0 1 14.25 16H1.75A1.75 1.75 0 0 1
+                             0 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0
+                             .138.112.25.25.25H7.5V1.5Zm6.25 13h6.25a.25.25 0 0 0
+                             .25-.25V1.75a.25.25 0 0 0-.25-.25H8v13Z"/>
+                </svg>
+                <span id="viewToggleLabel">Split</span>
+            </button>
+            <button class="vr-btn vr-btn-outline" id="sidebarToggle" title="Toggle file sidebar">
+                <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+                    <path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16
+                             1.75v12.5A1.75 1.75 0 0 1 14.25 16H1.75A1.75 1.75 0 0
+                             1 0 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0
+                             .138.112.25.25.25h3.5V1.5Zm5 0v13h7.5a.25.25 0 0 0
+                             .25-.25V1.75a.25.25 0 0 0-.25-.25Z"/>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <main class="vr-main">
+        <!-- File list sidebar -->
+        <aside class="vr-sidebar" id="sidebar">
+            <div class="vr-sidebar-header">
+                <input type="text" class="vr-filter-input" id="fileFilter"
+                       placeholder="Filter changed files" autocomplete="off" spellcheck="false">
+            </div>
+            <div class="vr-file-tree" id="fileTree"></div>
+        </aside>
+
+        <!-- Diff panel -->
+        <section class="vr-panel" id="diffPanel">
+            <div class="vr-empty-state" id="diffEmpty">
+                <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor" opacity="0.3">
+                    <path d="M12 1C5.925 1 1 5.925 1 12s4.925 11 11 11 11-4.925 11-11S18.075
+                             1 12 1ZM2.5 12a9.5 9.5 0 0 1 9.5-9.5 9.5 9.5 0 0 1 9.5 9.5 9.5
+                             9.5 0 0 1-9.5 9.5A9.5 9.5 0 0 1 2.5 12Z"/>
+                    <path d="M12 7a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-1.5 0v-4.5A.75.75
+                             0 0 1 12 7Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
+                </svg>
+                <p>Waiting for diff data…</p>
+                <span class="vr-empty-hint">The Copilot CLI extension will send diff data over WebSocket.</span>
+            </div>
+            <div id="diffContainer"></div>
+        </section>
+
+        <!-- Visualization panel -->
+        <section class="vr-panel hidden" id="vizPanel">
+            <div class="vr-empty-state" id="vizEmpty">
+                <svg viewBox="0 0 24 24" width="48" height="48" fill="currentColor" opacity="0.3">
+                    <path d="M2.5 2.75a.75.75 0 0 0-1.5 0v18.5c0 .414.336.75.75.75H20a.75.75
+                             0 0 0 0-1.5H2.5Z"/>
+                    <path d="M22.28 7.78a.751.751 0 0 0-1.042-.018.751.751 0 0
+                             0-.018-1.042l-5.25 5.25a.75.75 0 0 1-1.06 0L12.46
+                             9.52a2.25 2.25 0 0 0-3.18 0L5.03 13.78a.751.751 0 0 0
+                             .018 1.042.751.751 0 0 0 1.042.018l4.25-4.26a.75.75 0 0
+                             1 1.06 0l2.45 2.45a2.25 2.25 0 0 0 3.18 0Z"/>
+                </svg>
+                <p>No visualizations yet</p>
+                <span class="vr-empty-hint">Mermaid diagrams will appear here when generated.</span>
+            </div>
+            <div id="vizContainer"></div>
+        </section>
+    </main>
+
+    <!-- diff2html JS from CDN (UMD — exposes Diff2HtmlUI globally) -->
+    <script src="https://cdn.jsdelivr.net/npm/diff2html@3.4.48/bundles/js/diff2html-ui.min.js"></script>
+    <!-- Mermaid from CDN (ESM) -->
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+        window.mermaid = mermaid;
+        mermaid.initialize({ startOnLoad: false, theme: 'dark' });
+    </script>
+    <script type="module" src="app.mjs"></script>
+</body>
+</html>

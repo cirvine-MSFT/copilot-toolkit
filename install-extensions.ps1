@@ -28,7 +28,7 @@ if (-not (Test-Path $sourceDir)) {
     exit 1
 }
 
-$allExtensions = @("ado-pr-watcher", "ado-build-watcher")
+$allExtensions = @("ado-pr-watcher", "ado-build-watcher", "visual-review")
 if ($Only -and $Only.Count -gt 0) {
     $extensions = @($Only | Where-Object { $allExtensions -contains $_ })
     $invalid = @($Only | Where-Object { $allExtensions -notcontains $_ })

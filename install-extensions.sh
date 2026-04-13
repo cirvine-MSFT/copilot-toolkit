@@ -21,7 +21,7 @@ if [ ! -d "$SOURCE_DIR" ]; then
     exit 1
 fi
 
-ALL_EXTENSIONS=("ado-pr-watcher" "ado-build-watcher")
+ALL_EXTENSIONS=("ado-pr-watcher" "ado-build-watcher" "visual-review")
 
 if [ $# -gt 0 ]; then
     EXTENSIONS=()

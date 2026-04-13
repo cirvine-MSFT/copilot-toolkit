@@ -69,6 +69,13 @@ jobs:
           test -f "$COPILOT_HOME/extensions/ado-build-watcher/extension.mjs" || { echo "::error::ado-build-watcher/extension.mjs missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/ado-build-watcher/common.mjs" || { echo "::error::ado-build-watcher/common.mjs missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/ado-build-watcher/watcher-worker.mjs" || { echo "::error::ado-build-watcher/watcher-worker.mjs missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/extension.mjs" || { echo "::error::visual-review/extension.mjs missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/common.mjs" || { echo "::error::visual-review/common.mjs missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/server-worker.mjs" || { echo "::error::visual-review/server-worker.mjs missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/comment-store.mjs" || { echo "::error::visual-review/comment-store.mjs missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/web/index.html" || { echo "::error::visual-review/web/index.html missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/web/app.mjs" || { echo "::error::visual-review/web/app.mjs missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/web/styles.css" || { echo "::error::visual-review/web/styles.css missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/lib/tab-indicator.mjs" || { echo "::error::lib/tab-indicator.mjs missing"; exit 1; }
           echo "All expected files present"
 
@@ -107,6 +114,13 @@ jobs:
             "ado-build-watcher/extension.mjs",
             "ado-build-watcher/common.mjs",
             "ado-build-watcher/watcher-worker.mjs",
+            "visual-review/extension.mjs",
+            "visual-review/common.mjs",
+            "visual-review/server-worker.mjs",
+            "visual-review/comment-store.mjs",
+            "visual-review/web/index.html",
+            "visual-review/web/app.mjs",
+            "visual-review/web/styles.css",
             "lib/tab-indicator.mjs"
           )
           $extDir = Join-Path $copilotHome "extensions"
@@ -157,6 +171,13 @@ jobs:
             "ado-build-watcher\extension.mjs",
             "ado-build-watcher\common.mjs",
             "ado-build-watcher\watcher-worker.mjs",
+            "visual-review\extension.mjs",
+            "visual-review\common.mjs",
+            "visual-review\server-worker.mjs",
+            "visual-review\comment-store.mjs",
+            "visual-review\web\index.html",
+            "visual-review\web\app.mjs",
+            "visual-review\web\styles.css",
             "lib\tab-indicator.mjs"
           )
           $extDir = Join-Path $copilotHome.FullName "extensions"
