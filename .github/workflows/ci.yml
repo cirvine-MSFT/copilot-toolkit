@@ -70,6 +70,7 @@ jobs:
           test -f "$COPILOT_HOME/extensions/ado-build-watcher/common.mjs" || { echo "::error::ado-build-watcher/common.mjs missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/ado-build-watcher/watcher-worker.mjs" || { echo "::error::ado-build-watcher/watcher-worker.mjs missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/lib/tab-indicator.mjs" || { echo "::error::lib/tab-indicator.mjs missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/lib/resolve-node.mjs" || { echo "::error::lib/resolve-node.mjs missing"; exit 1; }
           echo "All expected files present"
 
       - name: Verify idempotence (stale files removed)
@@ -107,7 +108,8 @@ jobs:
             "ado-build-watcher/extension.mjs",
             "ado-build-watcher/common.mjs",
             "ado-build-watcher/watcher-worker.mjs",
-            "lib/tab-indicator.mjs"
+            "lib/tab-indicator.mjs",
+            "lib/resolve-node.mjs"
           )
           $extDir = Join-Path $copilotHome "extensions"
           $missing = $expected | Where-Object { -not (Test-Path (Join-Path $extDir $_)) }
@@ -157,7 +159,8 @@ jobs:
             "ado-build-watcher\extension.mjs",
             "ado-build-watcher\common.mjs",
             "ado-build-watcher\watcher-worker.mjs",
-            "lib\tab-indicator.mjs"
+            "lib\tab-indicator.mjs",
+            "lib\resolve-node.mjs"
           )
           $extDir = Join-Path $copilotHome.FullName "extensions"
           $missing = $expected | Where-Object { -not (Test-Path (Join-Path $extDir $_)) }

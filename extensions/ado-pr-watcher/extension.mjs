@@ -33,6 +33,7 @@ import {
 } from "./common.mjs";
 import { buildAutoStartRequestFromToolInput } from "./integration.mjs";
 import { markWatching, resetWatching, unmarkWatching } from "../lib/tab-indicator.mjs";
+import { resolveNodeBinary } from "../lib/resolve-node.mjs";
 
 const extensionDir = dirname(fileURLToPath(import.meta.url));
 const workerFilePath = join(extensionDir, "worker.mjs");
@@ -252,7 +253,8 @@ async function startWatcher(args, invocation, options = {}) {
     try {
         const logPath = getLogFilePath(watcherId);
         const logFd = openSync(logPath, "a");
-        worker = spawn(process.execPath, [workerFilePath, watcherFilePath], {
+        const nodeBinary = await resolveNodeBinary();
+        worker = spawn(nodeBinary, [workerFilePath, watcherFilePath], {
             cwd,
             detached: true,
             stdio: ["ignore", "ignore", logFd],

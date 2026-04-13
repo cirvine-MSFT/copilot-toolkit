@@ -18,6 +18,7 @@ import {
     writeJson,
 } from "./common.mjs";
 import { markWatching, resetWatching, unmarkWatching } from "../lib/tab-indicator.mjs";
+import { resolveNodeBinary } from "../lib/resolve-node.mjs";
 
 const extensionDir = dirname(fileURLToPath(import.meta.url));
 const workerPath = join(extensionDir, "watcher-worker.mjs");
@@ -25,7 +26,6 @@ const eventScanIntervalMs = 5000;
 const idleEventDeliveryDelayMs = 50;
 const orphanedDeliveryRetryDelayMs = 30000;
 const deliveryOwnerId = String(process.pid);
-const workerExecutable = process.execPath;
 const defaultWatcherFollowUpPrompt = [
     "Summarize the build result.",
     "If it failed or was canceled, inspect likely failure details and diagnose the probable root cause.",
@@ -186,7 +186,8 @@ const session = await joinSession({
 
                     writeJson(watcherPath, watcher);
 
-                    const child = spawn(workerExecutable, [workerPath, watcherPath], {
+                    const nodeBinary = await resolveNodeBinary();
+                    const child = spawn(nodeBinary, [workerPath, watcherPath], {
                         cwd: process.cwd(),
                         detached: true,
                         stdio: "ignore",

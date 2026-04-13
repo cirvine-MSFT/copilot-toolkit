@@ -22,8 +22,8 @@ plugin.json           # Plugin manifest for skills/agents distribution
 
 - **No bundled dependencies.** Extensions use `@github/copilot-sdk` which is auto-provided by the Copilot CLI runtime. Never add it to a package.json or import from node_modules.
 - **ES modules only.** All extension code is `.mjs` files using `import`/`export`. No CommonJS, no TypeScript, no build step.
-- **`process.execPath` for worker spawning.** When spawning detached Node worker processes, always use `process.execPath` — never `node` or `node.exe`. This ensures the worker runs under Copilot CLI's bundled Node, not whatever is on PATH.
-- **Shared code goes in `extensions/lib/`.** Both watchers import from `../lib/tab-indicator.mjs` via relative paths.
+- **`process.execPath` is NOT a Node binary.** Copilot CLI's `process.execPath` points to `copilot.exe`, not `node`. Always use `resolveNodeBinary()` from `extensions/lib/resolve-node.mjs` when spawning worker processes. It probes `process.execPath` first, then falls back to `node` on PATH.
+- **Shared code goes in `extensions/lib/`.** Both watchers import from `../lib/tab-indicator.mjs` and `../lib/resolve-node.mjs` via relative paths.
 - **PowerShell 5.1 compatibility.** Install scripts must work on Windows PowerShell 5.1. This means: no ternary expressions, no 3+ argument `Join-Path`, no reliance on `$HOME` reflecting `$env:HOME`.
 - **COPILOT_HOME env var.** Install scripts respect `COPILOT_HOME` (same as the CLI itself). Default target is `~/.copilot/extensions/`.
 - **Mirror install semantics.** Install scripts delete-then-copy each extension directory so stale files from previous versions are removed.
