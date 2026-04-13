@@ -18,6 +18,7 @@ import {
     nowIso,
     openBrowser,
     readJsonFile,
+    resolveNodeBinary,
     waitForWorkerHealth,
     writeJsonAtomic,
 } from "./common.mjs";
@@ -144,6 +145,9 @@ const session = await joinSession({
                     const maxAttempts = 2;
                     let lastReason = "";
 
+                    // Resolve the Node binary once for all attempts
+                    const nodeBinary = await resolveNodeBinary();
+
                     for (let attempt = 0; attempt < maxAttempts; attempt++) {
                         const port = await findFreePort(requestedPort);
                         const url = `http://127.0.0.1:${port}`;
@@ -181,7 +185,7 @@ const session = await joinSession({
                         const logFd = openSync(logPath, "a");
 
                         const child = spawn(
-                            process.execPath,
+                            nodeBinary,
                             [workerFilePath, serverStatePath],
                             {
                                 cwd,
