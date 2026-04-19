@@ -137,7 +137,8 @@ try {
     process.exit(1);
 }
 
-const { serverId, port, cwd, theme, scope, base } = state;
+const { serverId, port, cwd, theme, base } = state;
+let currentScope = state.scope;
 
 // ---------------------------------------------------------------------------
 // Directory layout under ~/.copilot/visual-review/
@@ -164,7 +165,7 @@ let cachedDiff = null;
 
 async function generateDiff() {
     let command;
-    switch (scope) {
+    switch (currentScope) {
         case "staged":
             command = "git diff --staged";
             break;
@@ -185,9 +186,9 @@ async function generateDiff() {
         });
 
         const files = parseDiffFiles(stdout);
-        cachedDiff = { diff: stdout, files, scope, base };
+        cachedDiff = { diff: stdout, files, scope: currentScope, base };
     } catch (err) {
-        cachedDiff = { diff: "", files: [], scope, base, error: err.message };
+        cachedDiff = { diff: "", files: [], scope: currentScope, base, error: err.message };
     }
 }
 
@@ -318,6 +319,22 @@ function handleWsMessage(ws, message) {
             break;
         }
 
+        case "diff:refresh": {
+            const newScope = msg.scope;
+            if (!["branch", "staged", "unstaged"].includes(newScope)) break;
+            currentScope = newScope;
+            generateDiff()
+                .then(() => {
+                    if (cachedDiff) {
+                        broadcast({ type: "diff:data", ...cachedDiff });
+                    }
+                })
+                .catch((err) => {
+                    broadcast({ type: "diff:data", diff: "", files: [], scope: currentScope, base, error: err.message });
+                });
+            break;
+        }
+
         default:
             break;
     }
@@ -379,6 +396,41 @@ function pollVisualizations() {
 }
 
 // ---------------------------------------------------------------------------
+// Reply polling (reads agent reply event files written by extension host)
+// ---------------------------------------------------------------------------
+
+function pollReplies() {
+    if (!existsSync(eventsDir)) return;
+
+    let entries;
+    try {
+        entries = readdirSync(eventsDir).filter((f) => f.endsWith(".json"));
+    } catch {
+        return;
+    }
+
+    for (const entry of entries) {
+        const eventPath = join(eventsDir, entry);
+        try {
+            const event = readJson(eventPath);
+            if (event.kind !== "comment:agent_reply") continue;
+            if (event.serverId !== serverId) continue;
+
+            broadcast({
+                type: "comment:agent_reply",
+                threadId: event.threadId,
+                text: event.text,
+            });
+
+            // Remove after delivery — replies flow extension→worker only
+            unlinkSync(eventPath);
+        } catch {
+            // Ignore corrupt/incomplete files
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // HTTP request handler
 // ---------------------------------------------------------------------------
 
@@ -397,7 +449,7 @@ function handleRequest(req, res) {
 
     // ---- API routes ----
     if (url.pathname === "/api/diff" && req.method === "GET") {
-        return sendJson(res, 200, cachedDiff ?? { diff: "", files: [], scope, base });
+        return sendJson(res, 200, cachedDiff ?? { diff: "", files: [], scope: currentScope, base });
     }
 
     if (url.pathname === "/api/comments") {
@@ -526,6 +578,7 @@ wss.on("connection", (ws) => {
 let shutdownTimer;
 let stateUpdateTimer;
 let vizPollTimer;
+let replyPollTimer;
 
 function pollShutdown() {
     try {
@@ -542,6 +595,7 @@ function gracefulShutdown() {
     clearInterval(shutdownTimer);
     clearInterval(stateUpdateTimer);
     clearInterval(vizPollTimer);
+    clearInterval(replyPollTimer);
 
     // Close all WebSocket connections
     for (const ws of wsClients) {
@@ -617,7 +671,7 @@ async function start() {
         })
         .catch((err) => {
             process.stderr.write(`Diff generation failed: ${err.message}\n`);
-            cachedDiff = { diff: "", files: [], scope, base, error: err.message };
+            cachedDiff = { diff: "", files: [], scope: currentScope, base, error: err.message };
             broadcast({ type: "diff:data", ...cachedDiff });
         });
 
@@ -629,6 +683,9 @@ async function start() {
 
     // Poll for visualization event files
     vizPollTimer = setInterval(pollVisualizations, VIZ_POLL_MS);
+
+    // Poll for agent reply event files
+    replyPollTimer = setInterval(pollReplies, VIZ_POLL_MS);
 }
 
 start().catch((err) => {

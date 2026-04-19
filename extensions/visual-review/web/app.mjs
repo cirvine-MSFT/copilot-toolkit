@@ -60,6 +60,21 @@ viewToggle.addEventListener('click', () => {
     viewToggleLabel.textContent = next === 'side-by-side' ? 'Split' : 'Unified';
 });
 
+// ── Scope toggle ──────────────────────────────────────────────
+const scopeSelect = document.getElementById('scopeSelect');
+if (scopeSelect) {
+    scopeSelect.addEventListener('change', () => {
+        ws.send({ type: 'diff:refresh', scope: scopeSelect.value });
+    });
+
+    // Sync dropdown when server reports a different scope
+    ws.on('diff:data', (data) => {
+        if (data.scope && scopeSelect.value !== data.scope) {
+            scopeSelect.value = data.scope;
+        }
+    });
+}
+
 // ── Sidebar toggle ────────────────────────────────────────────
 const sidebar = document.getElementById('sidebar');
 const sidebarToggle = document.getElementById('sidebarToggle');
@@ -68,6 +83,19 @@ sidebarToggle.addEventListener('click', () => {
     sidebar.classList.toggle('collapsed');
     document.querySelector('.vr-main').classList.toggle('sidebar-collapsed');
 });
+
+// ── Tree / flat view toggle ──────────────────────────────────
+const treeToggle = document.getElementById('treeToggle');
+if (treeToggle) {
+    // Sync button title with initial state
+    if (diffView.treeMode) {
+        treeToggle.title = 'Switch to flat view';
+    }
+    treeToggle.addEventListener('click', () => {
+        const isTree = diffView.toggleTreeMode();
+        treeToggle.title = isTree ? 'Switch to flat view' : 'Switch to tree view';
+    });
+}
 
 // ── Submit all pending comments ───────────────────────────────
 const submitAllBtn = document.getElementById('submitAllBtn');

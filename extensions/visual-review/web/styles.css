@@ -183,7 +183,7 @@ body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
     margin-left: auto;
     margin-right: auto;
     flex-shrink: 1;
-    min-width: 0;
+    min-width: 200px;
 }
 
 .vr-tab {
@@ -218,7 +218,8 @@ body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
     display: flex;
     align-items: center;
     gap: 8px;
-    flex-shrink: 0;
+    flex-shrink: 1;
+    min-width: 0;
 }
 
 .vr-file-count {
@@ -286,6 +287,22 @@ body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
 }
 .vr-btn-icon:hover { background: var(--color-bg-muted); color: var(--color-fg-default); }
 
+/* ── Scope selector ──────────────────────────────────────────── */
+.vr-scope-select {
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-fg-default);
+    background: var(--color-btn-bg);
+    border: 1px solid var(--color-btn-border);
+    border-radius: 6px;
+    cursor: pointer;
+    outline: none;
+}
+.vr-scope-select:hover { background: var(--color-btn-hover-bg); }
+.vr-scope-select:focus { border-color: var(--color-accent-fg); box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.3); }
+.vr-scope-select option { background: var(--color-bg-overlay); color: var(--color-fg-default); }
+
 /* ── Main layout ─────────────────────────────────────────────── */
 
 .vr-main {
@@ -314,6 +331,17 @@ body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
     padding: 8px;
     border-bottom: 1px solid var(--color-border-muted);
     flex-shrink: 0;
+}
+
+.vr-sidebar-header-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+.vr-sidebar-header-row .vr-filter-input {
+    flex: 1;
+    min-width: 0;
 }
 
 .vr-filter-input {
@@ -377,6 +405,53 @@ body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
     white-space: nowrap;
     font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
+
+/* ── Tree view ───────────────────────────────────────────────── */
+.vr-tree-dir { margin-bottom: 2px; }
+
+.vr-tree-dir-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-fg-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+}
+.vr-tree-dir-header:hover { color: var(--color-fg-default); background: var(--color-bg-muted); }
+
+.vr-tree-chevron {
+    flex-shrink: 0;
+    transition: transform 0.15s;
+    transform: rotate(90deg);
+}
+
+.vr-tree-dir.collapsed .vr-tree-chevron { transform: rotate(0deg); }
+.vr-tree-dir.collapsed .vr-tree-dir-children { display: none; }
+
+.vr-tree-dir-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+.vr-tree-dir-count {
+    font-size: 11px;
+    color: var(--color-fg-subtle);
+    background: var(--color-bg-muted);
+    border-radius: 10px;
+    padding: 0 6px;
+    line-height: 18px;
+}
+
+.vr-tree-file { padding-left: 28px; }
 
 .vr-file-comments {
     font-size: 11px;
@@ -476,7 +551,8 @@ body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
 .d2h-diff-tbody tr { border: none !important; }
 
 /* Line number cells */
-.d2h-code-linenumber {
+.d2h-code-linenumber,
+.d2h-code-side-linenumber {
     background: var(--color-bg-subtle) !important;
     color: var(--color-diff-line-num) !important;
     border-right: 1px solid var(--color-border-muted) !important;
@@ -490,25 +566,30 @@ body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
     vertical-align: top !important;
 }
 
-.d2h-code-linenumber::after { content: none !important; }
+.d2h-code-linenumber::after,
+.d2h-code-side-linenumber::after { content: none !important; }
 
 /* Code cells */
-.d2h-code-line {
+.d2h-code-line,
+.d2h-code-side-line {
     color: var(--color-fg-default) !important;
     padding: 0 12px !important;
 }
 
 .d2h-code-line-ctn { white-space: pre !important; }
 
-/* Side-by-side specific */
-.d2h-code-side-line { padding: 0 12px !important; }
+/* Side-by-side table layout fix — force columns to respect widths */
+.d2h-file-side-diff .d2h-diff-table {
+    table-layout: fixed;
+}
 
 /* Insertion lines */
 .d2h-ins {
     background-color: var(--color-diff-addition-bg) !important;
     border-color: transparent !important;
 }
-.d2h-ins .d2h-code-linenumber {
+.d2h-ins .d2h-code-linenumber,
+.d2h-ins .d2h-code-side-linenumber {
     background-color: var(--color-diff-addition-line-bg) !important;
     border-color: var(--color-border-muted) !important;
 }
@@ -519,7 +600,8 @@ body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
     background-color: var(--color-diff-deletion-bg) !important;
     border-color: transparent !important;
 }
-.d2h-del .d2h-code-linenumber {
+.d2h-del .d2h-code-linenumber,
+.d2h-del .d2h-code-side-linenumber {
     background-color: var(--color-diff-deletion-line-bg) !important;
     border-color: var(--color-border-muted) !important;
 }
@@ -548,7 +630,8 @@ del.d2h-change {
     padding: 4px 12px !important;
 }
 
-.d2h-code-linenumber.d2h-info {
+.d2h-code-linenumber.d2h-info,
+.d2h-code-side-linenumber.d2h-info {
     background: var(--color-diff-hunk-bg) !important;
 }
 
@@ -892,7 +975,8 @@ del.d2h-change {
 .vr-range-selected td {
     background-color: rgba(31, 111, 235, 0.08) !important;
 }
-.vr-range-selected .d2h-code-linenumber {
+.vr-range-selected .d2h-code-linenumber,
+.vr-range-selected .d2h-code-side-linenumber {
     background-color: rgba(31, 111, 235, 0.15) !important;
 }
 

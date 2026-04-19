@@ -45,6 +45,11 @@
                 Submit review
             </button>
             <span class="vr-file-count" id="fileCount"></span>
+            <select class="vr-scope-select" id="scopeSelect" title="Diff scope">
+                <option value="branch">Branch diff</option>
+                <option value="staged">Staged changes</option>
+                <option value="unstaged">Unstaged changes</option>
+            </select>
             <button class="vr-btn vr-btn-outline" id="viewToggle" title="Toggle split/unified view">
                 <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
                     <path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16
@@ -71,8 +76,15 @@
         <!-- File list sidebar -->
         <aside class="vr-sidebar" id="sidebar">
             <div class="vr-sidebar-header">
-                <input type="text" class="vr-filter-input" id="fileFilter"
-                       placeholder="Filter changed files" autocomplete="off" spellcheck="false">
+                <div class="vr-sidebar-header-row">
+                    <input type="text" class="vr-filter-input" id="fileFilter"
+                           placeholder="Filter changed files" autocomplete="off" spellcheck="false">
+                    <button class="vr-btn vr-btn-icon" id="treeToggle" title="Switch to tree view">
+                        <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" id="treeToggleIcon">
+                            <path d="M1.75 1a.75.75 0 0 0-.75.75v3c0 .414.336.75.75.75h3.5a.75.75 0 0 0 .75-.75v-3A.75.75 0 0 0 5.25 1Zm9 0a.75.75 0 0 0-.75.75v3c0 .414.336.75.75.75h3.5a.75.75 0 0 0 .75-.75v-3a.75.75 0 0 0-.75-.75ZM1.75 9a.75.75 0 0 0-.75.75v3c0 .414.336.75.75.75h3.5a.75.75 0 0 0 .75-.75v-3A.75.75 0 0 0 5.25 9Zm5.75 1.75a.75.75 0 0 1 .75-.75h1.5v-1.5a.75.75 0 0 1 1.5 0V10h1.5a.75.75 0 0 1 0 1.5h-1.5v1.5a.75.75 0 0 1-1.5 0v-1.5H8.25a.75.75 0 0 1-.75-.75Z"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
             <div class="vr-file-tree" id="fileTree"></div>
         </aside>

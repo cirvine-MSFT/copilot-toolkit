@@ -21,6 +21,8 @@ export class DiffView {
     #pendingComments = [];
     /** Whether to send comments immediately or queue them */
     #batchMode = false;
+    /** Whether the sidebar shows tree view (true) or flat list (false) */
+    #treeMode = false;
 
     /**
      * @param {HTMLElement} container — the #diffContainer element
@@ -29,6 +31,7 @@ export class DiffView {
     constructor(container, ws) {
         this.#container = container;
         this.#ws = ws;
+        this.#treeMode = localStorage.getItem('vr-tree-mode') === 'true';
     }
 
     // ── Public API ────────────────────────────────────────────────
@@ -96,6 +99,22 @@ export class DiffView {
     /** Current output format. */
     get outputFormat() { return this.#outputFormat; }
 
+    /** Whether tree view is active. */
+    get treeMode() { return this.#treeMode; }
+
+    /**
+     * Toggle between flat and tree view in the sidebar.
+     * @returns {boolean} The new tree mode state.
+     */
+    toggleTreeMode() {
+        this.#treeMode = !this.#treeMode;
+        localStorage.setItem('vr-tree-mode', String(this.#treeMode));
+        if (this.#rawDiff) {
+            this.#buildFileTree(this.#rawDiff);
+        }
+        return this.#treeMode;
+    }
+
     // ── Diff rendering ────────────────────────────────────────────
 
     #draw() {
@@ -135,7 +154,7 @@ export class DiffView {
     // ── Comment trigger (the "+" button on hover) ─────────────────
 
     #attachCommentTriggers() {
-        const lineNumCells = this.#container.querySelectorAll('.d2h-code-linenumber');
+        const lineNumCells = this.#container.querySelectorAll('.d2h-code-linenumber, .d2h-code-side-linenumber');
         for (const cell of lineNumCells) {
             cell.classList.add('vr-line-gutter');
             cell.addEventListener('mouseenter', () => this.#showTrigger(cell));
@@ -172,7 +191,7 @@ export class DiffView {
 
     #highlightRange(filePath, startLine, endLine, side) {
         this.#clearRangeHighlight();
-        const cells = this.#container.querySelectorAll('.d2h-code-linenumber');
+        const cells = this.#container.querySelectorAll('.d2h-code-linenumber, .d2h-code-side-linenumber');
         for (const cell of cells) {
             const info = this.#resolveLineInfo(cell, cell.closest('tr'));
             if (info.filePath === filePath && info.side === side && info.line >= startLine && info.line <= endLine) {
@@ -494,7 +513,7 @@ export class DiffView {
         if (!fileWrapper) return null;
 
         // Find the line number cell matching the target line
-        const lineNumCells = fileWrapper.querySelectorAll('.d2h-code-linenumber');
+        const lineNumCells = fileWrapper.querySelectorAll('.d2h-code-linenumber, .d2h-code-side-linenumber');
         for (const cell of lineNumCells) {
             const numText = cell.textContent.trim();
             if (numText && parseInt(numText, 10) === line) {
@@ -517,7 +536,7 @@ export class DiffView {
         const line = parseInt(lineText, 10) || 0;
 
         // Determine side from cell position (left vs right in side-by-side)
-        const cells = Array.from(tr.querySelectorAll('.d2h-code-linenumber'));
+        const cells = Array.from(tr.querySelectorAll('.d2h-code-linenumber, .d2h-code-side-linenumber'));
         const side = cells.indexOf(lineNumCell) === 0 ? 'left' : 'right';
 
         return { filePath, line, side };
@@ -573,23 +592,11 @@ export class DiffView {
             fileCount.textContent = `${files.length} file${files.length !== 1 ? 's' : ''}`;
         }
 
-        fileTree.innerHTML = files.map(f => `
-            <button class="vr-file-item" data-file="${escapeHtml(f.path)}" title="${escapeHtml(f.path)}">
-                <span class="vr-file-status vr-file-status-${f.status.toLowerCase()}">${f.status}</span>
-                <span class="vr-file-name">${escapeHtml(shortPath(f.path))}</span>
-                <span class="vr-file-comments" data-file-comments="${escapeHtml(f.path)}"></span>
-            </button>`).join('');
-
-        // Wire click handlers to scroll to the file's diff
-        fileTree.querySelectorAll('.vr-file-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const filePath = item.dataset.file;
-                this.#scrollToFile(filePath);
-                // Highlight active
-                fileTree.querySelectorAll('.vr-file-item').forEach(i => i.classList.remove('active'));
-                item.classList.add('active');
-            });
-        });
+        if (this.#treeMode) {
+            this.#buildTreeView(files, fileTree);
+        } else {
+            this.#buildFlatView(files, fileTree);
+        }
 
         // Wire filter input (use property to avoid stacking listeners on repeated render calls)
         const filterInput = document.getElementById('fileFilter');
@@ -600,10 +607,86 @@ export class DiffView {
                     const name = item.dataset.file.toLowerCase();
                     item.style.display = name.includes(query) ? '' : 'none';
                 });
+                // In tree mode, hide empty directories
+                if (this.#treeMode) {
+                    fileTree.querySelectorAll('.vr-tree-dir').forEach(dir => {
+                        const visibleFiles = dir.querySelectorAll('.vr-file-item:not([style*="display: none"])');
+                        dir.style.display = visibleFiles.length > 0 ? '' : 'none';
+                    });
+                }
             };
         }
 
         this.#updateFileTreeCommentCounts();
+    }
+
+    #buildFlatView(files, fileTree) {
+        fileTree.innerHTML = files.map(f => `
+            <button class="vr-file-item" data-file="${escapeHtml(f.path)}" title="${escapeHtml(f.path)}">
+                <span class="vr-file-status vr-file-status-${f.status.toLowerCase()}">${f.status}</span>
+                <span class="vr-file-name">${escapeHtml(shortPath(f.path))}</span>
+                <span class="vr-file-comments" data-file-comments="${escapeHtml(f.path)}"></span>
+            </button>`).join('');
+
+        this.#wireFileItemClicks(fileTree);
+    }
+
+    #buildTreeView(files, fileTree) {
+        // Group files by directory
+        const tree = {};
+        for (const f of files) {
+            const parts = f.path.split('/');
+            const dir = parts.length > 1 ? parts.slice(0, -1).join('/') : '.';
+            (tree[dir] ??= []).push(f);
+        }
+
+        const dirs = Object.keys(tree).sort();
+
+        const html = dirs.map(dir => {
+            const dirFiles = tree[dir];
+            const dirLabel = dir === '.' ? '(root)' : dir;
+            const fileItems = dirFiles.map(f => {
+                const name = f.path.split('/').pop();
+                return `<button class="vr-file-item vr-tree-file" data-file="${escapeHtml(f.path)}" title="${escapeHtml(f.path)}">
+                    <span class="vr-file-status vr-file-status-${f.status.toLowerCase()}">${f.status}</span>
+                    <span class="vr-file-name">${escapeHtml(name)}</span>
+                    <span class="vr-file-comments" data-file-comments="${escapeHtml(f.path)}"></span>
+                </button>`;
+            }).join('');
+
+            return `<div class="vr-tree-dir">
+                <button class="vr-tree-dir-header" data-dir="${escapeHtml(dir)}">
+                    <svg class="vr-tree-chevron" viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
+                        <path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/>
+                    </svg>
+                    <span class="vr-tree-dir-name">${escapeHtml(dirLabel)}</span>
+                    <span class="vr-tree-dir-count">${dirFiles.length}</span>
+                </button>
+                <div class="vr-tree-dir-children">${fileItems}</div>
+            </div>`;
+        }).join('');
+
+        fileTree.innerHTML = html;
+
+        // Wire directory collapse/expand
+        fileTree.querySelectorAll('.vr-tree-dir-header').forEach(header => {
+            header.addEventListener('click', () => {
+                header.closest('.vr-tree-dir').classList.toggle('collapsed');
+            });
+        });
+
+        this.#wireFileItemClicks(fileTree);
+    }
+
+    #wireFileItemClicks(fileTree) {
+        fileTree.querySelectorAll('.vr-file-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const filePath = item.dataset.file;
+                this.#scrollToFile(filePath);
+                fileTree.querySelectorAll('.vr-file-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+            });
+        });
     }
 
     #scrollToFile(filePath) {

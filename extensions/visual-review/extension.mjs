@@ -454,6 +454,63 @@ const session = await joinSession({
                 }
             },
         },
+
+        // ------------------------------------------------------------------
+        // visual_review_reply
+        // ------------------------------------------------------------------
+        {
+            name: "visual_review_reply",
+            description: "Reply to a review comment in the visual review browser UI. The reply appears inline in the comment thread.",
+            parameters: {
+                type: "object",
+                properties: {
+                    threadId: {
+                        type: "string",
+                        description: "The thread ID of the comment to reply to.",
+                    },
+                    text: {
+                        type: "string",
+                        description: "The reply text.",
+                    },
+                },
+                required: ["threadId", "text"],
+            },
+            handler: async (args, invocation) => {
+                try {
+                    currentSessionId = invocation.sessionId;
+
+                    if (!activeServerId) {
+                        return failure("No active visual review server. Start one with visual_review_start first.");
+                    }
+
+                    if (!args.threadId || !args.text) {
+                        return failure("Both threadId and text are required.");
+                    }
+
+                    const { eventsDir } = ensureStateDirs();
+                    const eventId = createEventId();
+                    const eventPath = join(eventsDir, `${eventId}.json`);
+
+                    const replyEvent = {
+                        eventId,
+                        serverId: activeServerId,
+                        kind: "comment:agent_reply",
+                        createdAt: nowIso(),
+                        threadId: args.threadId,
+                        text: args.text,
+                        deliveredSessionIds: [],
+                    };
+
+                    await writeJsonAtomic(eventPath, replyEvent);
+
+                    return success(
+                        `Reply sent to thread ${args.threadId} in the visual review browser.`,
+                    );
+                } catch (error) {
+                    return failure(`Failed to send reply: ${formatError(error)}`);
+                }
+            },
+        },
     ],
 });
 
@@ -598,8 +655,9 @@ function buildCommentPrompt(event) {
         "A reviewer left a comment on your code changes in the visual review:",
         `File: ${event.filePath}, Line: ${event.lineNumber}`,
         `Comment: ${event.commentText}`,
+        `Thread ID: ${event.threadId}`,
         "",
-        "Read the comment, understand the context, and respond appropriately. If the comment suggests a code change, implement it. Then reply to the comment using visual_review_status or by pushing an update.",
+        "Read the comment, understand the context, and respond appropriately. If the comment suggests a code change, implement it. Reply to the comment using the visual_review_reply tool with the thread ID above.",
     ];
 
     return sections.join("\n");
