@@ -219,7 +219,6 @@ export class DiffView {
             if (related && related.closest('.vr-line-gutter') === cell) return;
             this.#hideTrigger(cell);
         });
-        cell.style.position = 'relative';
         cell.appendChild(btn);
     }
 
@@ -632,41 +631,28 @@ export class DiffView {
     }
 
     #buildTreeView(files, fileTree) {
-        // Group files by directory
-        const tree = {};
+        // Build a nested tree data structure
+        const root = { children: {}, files: [] };
+
         for (const f of files) {
             const parts = f.path.split('/');
-            const dir = parts.length > 1 ? parts.slice(0, -1).join('/') : '.';
-            (tree[dir] ??= []).push(f);
+            let node = root;
+
+            // Navigate/create directory nodes for each path segment except the filename
+            for (let i = 0; i < parts.length - 1; i++) {
+                const segment = parts[i];
+                if (!node.children[segment]) {
+                    node.children[segment] = { children: {}, files: [] };
+                }
+                node = node.children[segment];
+            }
+
+            // Add file to the leaf directory
+            node.files.push({ ...f, name: parts[parts.length - 1] });
         }
 
-        const dirs = Object.keys(tree).sort();
-
-        const html = dirs.map(dir => {
-            const dirFiles = tree[dir];
-            const dirLabel = dir === '.' ? '(root)' : dir;
-            const fileItems = dirFiles.map(f => {
-                const name = f.path.split('/').pop();
-                return `<button class="vr-file-item vr-tree-file" data-file="${escapeHtml(f.path)}" title="${escapeHtml(f.path)}">
-                    <span class="vr-file-status vr-file-status-${f.status.toLowerCase()}">${f.status}</span>
-                    <span class="vr-file-name">${escapeHtml(name)}</span>
-                    <span class="vr-file-comments" data-file-comments="${escapeHtml(f.path)}"></span>
-                </button>`;
-            }).join('');
-
-            return `<div class="vr-tree-dir">
-                <button class="vr-tree-dir-header" data-dir="${escapeHtml(dir)}">
-                    <svg class="vr-tree-chevron" viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
-                        <path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/>
-                    </svg>
-                    <span class="vr-tree-dir-name">${escapeHtml(dirLabel)}</span>
-                    <span class="vr-tree-dir-count">${dirFiles.length}</span>
-                </button>
-                <div class="vr-tree-dir-children">${fileItems}</div>
-            </div>`;
-        }).join('');
-
-        fileTree.innerHTML = html;
+        // Render the tree recursively
+        fileTree.innerHTML = this.#renderTreeNode(root, 0);
 
         // Wire directory collapse/expand
         fileTree.querySelectorAll('.vr-tree-dir-header').forEach(header => {
@@ -676,6 +662,50 @@ export class DiffView {
         });
 
         this.#wireFileItemClicks(fileTree);
+    }
+
+    #renderTreeNode(node, depth) {
+        let html = '';
+
+        // Render subdirectories first (sorted)
+        const dirNames = Object.keys(node.children).sort();
+        for (const dirName of dirNames) {
+            const child = node.children[dirName];
+            const fileCount = this.#countFiles(child);
+            const indent = depth * 12;
+            const childHtml = this.#renderTreeNode(child, depth + 1);
+
+            html += `<div class="vr-tree-dir">
+                <button class="vr-tree-dir-header" style="padding-left: ${8 + indent}px">
+                    <svg class="vr-tree-chevron" viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
+                        <path d="M6.22 3.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L9.94 8 6.22 4.28a.75.75 0 0 1 0-1.06Z"/>
+                    </svg>
+                    <span class="vr-tree-dir-name">${escapeHtml(dirName)}</span>
+                    <span class="vr-tree-dir-count">${fileCount}</span>
+                </button>
+                <div class="vr-tree-dir-children">${childHtml}</div>
+            </div>`;
+        }
+
+        // Then render files in this directory (sorted)
+        const indent = depth * 12;
+        for (const f of node.files.sort((a, b) => a.name.localeCompare(b.name))) {
+            html += `<button class="vr-file-item vr-tree-file" data-file="${escapeHtml(f.path)}" title="${escapeHtml(f.path)}" style="padding-left: ${20 + indent}px">
+                <span class="vr-file-status vr-file-status-${f.status.toLowerCase()}">${f.status}</span>
+                <span class="vr-file-name">${escapeHtml(f.name)}</span>
+                <span class="vr-file-comments" data-file-comments="${escapeHtml(f.path)}"></span>
+            </button>`;
+        }
+
+        return html;
+    }
+
+    #countFiles(node) {
+        let count = node.files.length;
+        for (const child of Object.values(node.children)) {
+            count += this.#countFiles(child);
+        }
+        return count;
     }
 
     #wireFileItemClicks(fileTree) {

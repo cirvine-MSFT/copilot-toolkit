@@ -19,3 +19,6 @@ Thumbs.db
 # Build output
 dist/
 out/
+.playwright-mcp/
+*.png
+copilot-feedback-*.tgz

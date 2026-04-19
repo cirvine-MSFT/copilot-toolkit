@@ -451,7 +451,7 @@ body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
     line-height: 18px;
 }
 
-.vr-tree-file { padding-left: 28px; }
+.vr-tree-file { /* padding-left set inline based on tree depth */ }
 
 .vr-file-comments {
     font-size: 11px;
@@ -578,10 +578,6 @@ body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
 
 .d2h-code-line-ctn { white-space: pre !important; }
 
-/* Side-by-side table layout fix — force columns to respect widths */
-.d2h-file-side-diff .d2h-diff-table {
-    table-layout: fixed;
-}
 
 /* Insertion lines */
 .d2h-ins {
@@ -645,11 +641,11 @@ del.d2h-change {
 
 .vr-add-comment-btn {
     position: absolute;
-    left: 2px;
+    left: 0;
     top: 50%;
     transform: translateY(-50%);
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -659,24 +655,32 @@ del.d2h-change {
     border-radius: 50%;
     cursor: pointer;
     z-index: 20;
-    opacity: 0;
-    animation: vrFadeIn 0.1s forwards;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 .vr-add-comment-btn:hover {
     background: var(--color-accent-fg);
-    transform: translateY(-50%) scale(1.1);
+    transform: translateY(-50%) scale(1.15);
 }
 
 .vr-add-comment-btn svg { width: 12px; height: 12px; }
 
-@keyframes vrFadeIn {
-    from { opacity: 0; }
-    to   { opacity: 1; }
+.vr-line-gutter {
+    position: relative;
+    overflow: visible !important;
+    cursor: pointer;
+    transition: background-color 0.1s;
 }
 
-.vr-line-gutter { position: relative; overflow: visible !important; }
+.vr-line-gutter:hover {
+    background-color: var(--color-accent-emphasis) !important;
+    color: #ffffff !important;
+}
+
+/* Highlight the entire row when hovering the gutter */
+.d2h-diff-tbody tr:has(.vr-line-gutter:hover) {
+    background-color: rgba(31, 111, 235, 0.04) !important;
+}
 
 /* ── Comment form row ────────────────────────────────────────── */
 
