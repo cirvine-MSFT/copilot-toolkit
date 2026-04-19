@@ -539,7 +539,11 @@ body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
     font-size: 11px !important;
 }
 
-.d2h-file-diff { overflow-x: auto; }
+/* position: relative creates a containing block so that diff2html's
+   position: absolute line-number cells scroll with content instead of
+   floating relative to the viewport. */
+.d2h-file-diff { overflow-x: auto; position: relative; }
+.d2h-file-side-diff { position: relative; }
 
 .d2h-diff-table {
     font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace !important;
