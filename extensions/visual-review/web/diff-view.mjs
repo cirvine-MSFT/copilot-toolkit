@@ -124,6 +124,14 @@ export class DiffView {
         this.#renderAllThreads();
     }
 
+    #getColspan() {
+        const firstRow = this.#container.querySelector('.d2h-diff-tbody tr');
+        if (firstRow) {
+            return firstRow.querySelectorAll('td').length;
+        }
+        return this.#outputFormat === 'side-by-side' ? 4 : 3;
+    }
+
     // ── Comment trigger (the "+" button on hover) ─────────────────
 
     #attachCommentTriggers() {
@@ -213,7 +221,7 @@ export class DiffView {
         const endLine = range?.endLine ?? line;
         const lineLabel = startLine === endLine ? `L${startLine}` : `L${startLine}-L${endLine}`;
 
-        const colspan = this.#outputFormat === 'side-by-side' ? 4 : 3;
+        const colspan = this.#getColspan();
         const formRow = document.createElement('tr');
         formRow.className = 'vr-comment-form-row';
         formRow.innerHTML = `
@@ -385,7 +393,7 @@ export class DiffView {
         );
         if (existing) existing.remove();
 
-        const colspan = this.#outputFormat === 'side-by-side' ? 4 : 3;
+        const colspan = this.#getColspan();
         const row = document.createElement('tr');
         row.className = 'vr-comment-thread-row';
         row.dataset.threadId = thread.id;
@@ -583,16 +591,16 @@ export class DiffView {
             });
         });
 
-        // Wire filter input
+        // Wire filter input (use property to avoid stacking listeners on repeated render calls)
         const filterInput = document.getElementById('fileFilter');
         if (filterInput) {
-            filterInput.addEventListener('input', () => {
+            filterInput.oninput = () => {
                 const query = filterInput.value.toLowerCase();
                 fileTree.querySelectorAll('.vr-file-item').forEach(item => {
                     const name = item.dataset.file.toLowerCase();
                     item.style.display = name.includes(query) ? '' : 'none';
                 });
-            });
+            };
         }
 
         this.#updateFileTreeCommentCounts();

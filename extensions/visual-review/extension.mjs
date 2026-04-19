@@ -341,7 +341,7 @@ const session = await joinSession({
                     const pendingEvents = [];
                     for (const filePath of eventPaths) {
                         const event = await readJsonFile(filePath);
-                        if (event && !isEventDelivered(event, currentSessionId)) {
+                        if (event && !isEventDelivered(event, currentSessionId) && (!activeServerId || event.serverId === activeServerId)) {
                             pendingEvents.push(event);
                         }
                     }
@@ -520,6 +520,12 @@ async function deliverPendingEvents(sessionId) {
         return;
     }
 
+    // Snapshot activeServerId at scan start to prevent mid-scan mutation
+    const targetServerId = activeServerId;
+    if (!targetServerId) {
+        return; // No active server — nothing to deliver
+    }
+
     eventDeliveryInFlight = true;
 
     try {
@@ -534,6 +540,11 @@ async function deliverPendingEvents(sessionId) {
 
             // Only deliver comment events as follow-up prompts
             if (!event.kind || !event.kind.startsWith("comment:")) {
+                continue;
+            }
+
+            // Only deliver events from our active server
+            if (event.serverId !== targetServerId) {
                 continue;
             }
 

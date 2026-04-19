@@ -1,0 +1,75 @@
+// Sample configuration for the Widget service
+// This file demonstrates a typical after-state for diff testing.
+// Added: health check, graceful shutdown, structured logging.
+
+const CONFIG = {
+    serviceName: "widget-service",
+    version: "2.0.0",
+    port: 3000,
+    host: "127.0.0.1",
+    timeout: 10000,
+    retries: 5,
+    healthCheckInterval: 30000,
+};
+
+function initialize(config) {
+    log("info", "Starting service", { name: config.serviceName, port: config.port });
+
+    if (config.timeout < 1000) {
+        throw new Error("Timeout too low");
+    }
+
+    if (config.retries < 1) {
+        throw new Error("Must have at least 1 retry");
+    }
+
+    return {
+        status: "ready",
+        uptime: 0,
+        startedAt: new Date().toISOString(),
+    };
+}
+
+function processRequest(data) {
+    if (!data) {
+        return { error: "No data provided", code: "MISSING_DATA" };
+    }
+
+    const startTime = performance.now();
+
+    const result = {
+        id: Math.random().toString(36).slice(2),
+        processed: true,
+        timestamp: Date.now(),
+        processingTimeMs: Math.round(performance.now() - startTime),
+    };
+
+    log("debug", "Request processed", { id: result.id, timeMs: result.processingTimeMs });
+
+    return result;
+}
+
+function healthCheck() {
+    return {
+        status: "healthy",
+        uptime: process.uptime(),
+        memoryUsage: process.memoryUsage().heapUsed,
+    };
+}
+
+function shutdown(reason = "manual") {
+    log("info", "Shutting down gracefully", { reason });
+    return new Promise((resolve) => setTimeout(resolve, 100));
+}
+
+function log(level, message, meta = {}) {
+    const entry = {
+        timestamp: new Date().toISOString(),
+        level,
+        message,
+        ...meta,
+    };
+    console.log(JSON.stringify(entry));
+}
+
+module.exports = { CONFIG, initialize, processRequest, healthCheck, shutdown };

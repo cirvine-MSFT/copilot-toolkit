@@ -1,0 +1,10 @@
+{
+  "name": "visual-review-dev-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dev/test tooling for the visual-review extension (not shipped)",
+  "type": "module",
+  "dependencies": {
+    "@playwright/test": "^1.52.0"
+  }
+}

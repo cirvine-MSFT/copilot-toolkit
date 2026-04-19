@@ -49,6 +49,7 @@
     --color-comment-border-copilot: #a371f7;
     --color-comment-bg: #161b22;
     --color-comment-form-bg: #0d1117;
+    --header-height: 48px;
 }
 
 :root[data-theme="light"] {
@@ -94,6 +95,7 @@
     --color-comment-border-copilot: #8250df;
     --color-comment-bg: #ffffff;
     --color-comment-form-bg: #f6f8fa;
+    --header-height: 48px;
 }
 
 /* ── Reset & base ────────────────────────────────────────────── */
@@ -126,7 +128,7 @@ body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
     display: flex;
     align-items: center;
     gap: 12px;
-    height: 48px;
+    height: var(--header-height);
     padding: 0 16px;
     background: var(--color-header-bg);
     border-bottom: 1px solid var(--color-border-default);
@@ -600,15 +602,15 @@ del.d2h-change {
     background: var(--color-comment-form-bg) !important;
     border-top: 1px solid var(--color-border-default);
     border-bottom: 1px solid var(--color-border-default);
+    overflow: visible;
 }
 
 .vr-comment-form {
     display: flex;
     gap: 12px;
     padding: 12px 16px;
-    /* Keep form within viewport even when diff table is wider */
-    max-width: calc(100vw - 300px);
-    min-width: 400px;
+    max-width: min(800px, 100%);
+    min-width: min(400px, 100%);
     position: sticky;
     left: 0;
 }
@@ -686,6 +688,11 @@ del.d2h-change {
     margin-top: 8px;
 }
 
+.vr-comment-thread-row,
+.vr-comment-form-row {
+    width: 100%;
+}
+
 /* ── Comment thread row ──────────────────────────────────────── */
 
 .vr-comment-thread-row td {
@@ -693,6 +700,7 @@ del.d2h-change {
     background: var(--color-bg-default) !important;
     border-top: 1px solid var(--color-border-default);
     border-bottom: 1px solid var(--color-border-default);
+    overflow: visible;
 }
 
 .vr-comment-thread-row.vr-resolved {
@@ -704,8 +712,8 @@ del.d2h-change {
     display: flex;
     flex-direction: column;
     gap: 0;
-    max-width: calc(100vw - 300px);
-    min-width: 400px;
+    max-width: min(800px, 100%);
+    min-width: min(400px, 100%);
     position: sticky;
     left: 0;
 }
@@ -943,8 +951,16 @@ del.d2h-change {
 }
 
 @media (max-width: 600px) {
-    .vr-sidebar { position: absolute; left: 0; top: 48px; height: calc(100vh - 48px); z-index: 50; }
+    .vr-sidebar { position: absolute; left: 0; top: var(--header-height); height: calc(100vh - var(--header-height)); z-index: 50; }
     .vr-sidebar.collapsed { width: 0; }
     .vr-header-right .vr-file-count { display: none; }
     .vr-connection-status .vr-status-text { display: none; }
+    .vr-comment-form {
+        padding: 8px;
+        flex-direction: column;
+    }
+    .vr-comment-avatar { display: none; }
+    .vr-comment-thread {
+        padding: 8px;
+    }
 }

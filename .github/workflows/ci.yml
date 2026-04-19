@@ -76,6 +76,12 @@ jobs:
           test -f "$COPILOT_HOME/extensions/visual-review/web/index.html" || { echo "::error::visual-review/web/index.html missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/visual-review/web/app.mjs" || { echo "::error::visual-review/web/app.mjs missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/visual-review/web/styles.css" || { echo "::error::visual-review/web/styles.css missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/package.json" || { echo "::error::visual-review/package.json missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/web/diff-view.mjs" || { echo "::error::visual-review/web/diff-view.mjs missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/web/ws-client.mjs" || { echo "::error::visual-review/web/ws-client.mjs missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/web/viz-panel.mjs" || { echo "::error::visual-review/web/viz-panel.mjs missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/web/vendor/diff2html-ui.min.js" || { echo "::error::visual-review/web/vendor/diff2html-ui.min.js missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/web/vendor/diff2html.min.css" || { echo "::error::visual-review/web/vendor/diff2html.min.css missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/lib/tab-indicator.mjs" || { echo "::error::lib/tab-indicator.mjs missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/lib/resolve-node.mjs" || { echo "::error::lib/resolve-node.mjs missing"; exit 1; }
           echo "All expected files present"
@@ -122,6 +128,12 @@ jobs:
             "visual-review/web/index.html",
             "visual-review/web/app.mjs",
             "visual-review/web/styles.css",
+            "visual-review/package.json",
+            "visual-review/web/diff-view.mjs",
+            "visual-review/web/ws-client.mjs",
+            "visual-review/web/viz-panel.mjs",
+            "visual-review/web/vendor/diff2html-ui.min.js",
+            "visual-review/web/vendor/diff2html.min.css",
             "lib/tab-indicator.mjs",
             "lib/resolve-node.mjs"
           )
@@ -180,6 +192,12 @@ jobs:
             "visual-review\web\index.html",
             "visual-review\web\app.mjs",
             "visual-review\web\styles.css",
+            "visual-review\package.json",
+            "visual-review\web\diff-view.mjs",
+            "visual-review\web\ws-client.mjs",
+            "visual-review\web\viz-panel.mjs",
+            "visual-review\web\vendor\diff2html-ui.min.js",
+            "visual-review\web\vendor\diff2html.min.css",
             "lib\tab-indicator.mjs",
             "lib\resolve-node.mjs"
           )
