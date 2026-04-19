@@ -10,8 +10,9 @@ A public collection of GitHub Copilot CLI extensions (and eventually skills/agen
 extensions/
   ado-pr-watcher/     # Azure DevOps PR monitoring extension
   ado-build-watcher/  # Azure DevOps build/pipeline monitoring extension
-  lib/                # Shared library (tab-indicator) used by both watchers
-skills/               # Future Copilot skills (empty placeholder)
+  visual-review/      # Browser-based diff viewer with inline commenting
+  lib/                # Shared library (tab-indicator, resolve-node) used by extensions
+skills/# Future Copilot skills (empty placeholder)
 agents/               # Future Copilot agents (empty placeholder)
 install-extensions.ps1  # PowerShell installer (PS 5.1+ and pwsh 7+)
 install-extensions.sh   # Bash installer (macOS/Linux)
@@ -22,8 +23,8 @@ plugin.json           # Plugin manifest for skills/agents distribution
 
 - **No bundled dependencies.** Extensions use `@github/copilot-sdk` which is auto-provided by the Copilot CLI runtime. Never add it to a package.json or import from node_modules. Worker processes that run under system `node` (not the Copilot CLI) may declare npm dependencies in a local `package.json` — install scripts handle `npm install` automatically.
 - **ES modules only.** All extension code is `.mjs` files using `import`/`export`. No CommonJS, no TypeScript, no build step.
-- **`resolveNodeBinary()` for worker spawning.** Copilot CLI's `process.execPath` points to `copilot.exe`, not a Node binary. When spawning detached Node worker processes, always use `resolveNodeBinary()` from `common.mjs` which probes `process.execPath` first and falls back to `node` on PATH.
-- **Shared code goes in `extensions/lib/`.** Both watchers import from `../lib/tab-indicator.mjs` via relative paths.
+- **`process.execPath` is NOT a Node binary.** Copilot CLI's `process.execPath` points to `copilot.exe`, not `node`. Always use `resolveNodeBinary()` from `extensions/lib/resolve-node.mjs` when spawning worker processes. It probes `process.execPath` first, then falls back to `node` on PATH.
+- **Shared code goes in `extensions/lib/`.** Extensions import from `../lib/tab-indicator.mjs` and `../lib/resolve-node.mjs` via relative paths.
 - **PowerShell 5.1 compatibility.** Install scripts must work on Windows PowerShell 5.1. This means: no ternary expressions, no 3+ argument `Join-Path`, no reliance on `$HOME` reflecting `$env:HOME`.
 - **COPILOT_HOME env var.** Install scripts respect `COPILOT_HOME` (same as the CLI itself). Default target is `~/.copilot/extensions/`.
 - **Mirror install semantics.** Install scripts delete-then-copy each extension directory so stale files from previous versions are removed.

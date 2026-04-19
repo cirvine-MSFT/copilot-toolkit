@@ -77,6 +77,7 @@ jobs:
           test -f "$COPILOT_HOME/extensions/visual-review/web/app.mjs" || { echo "::error::visual-review/web/app.mjs missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/visual-review/web/styles.css" || { echo "::error::visual-review/web/styles.css missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/lib/tab-indicator.mjs" || { echo "::error::lib/tab-indicator.mjs missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/lib/resolve-node.mjs" || { echo "::error::lib/resolve-node.mjs missing"; exit 1; }
           echo "All expected files present"
 
       - name: Verify idempotence (stale files removed)
@@ -121,7 +122,8 @@ jobs:
             "visual-review/web/index.html",
             "visual-review/web/app.mjs",
             "visual-review/web/styles.css",
-            "lib/tab-indicator.mjs"
+            "lib/tab-indicator.mjs",
+            "lib/resolve-node.mjs"
           )
           $extDir = Join-Path $copilotHome "extensions"
           $missing = $expected | Where-Object { -not (Test-Path (Join-Path $extDir $_)) }
@@ -178,7 +180,8 @@ jobs:
             "visual-review\web\index.html",
             "visual-review\web\app.mjs",
             "visual-review\web\styles.css",
-            "lib\tab-indicator.mjs"
+            "lib\tab-indicator.mjs",
+            "lib\resolve-node.mjs"
           )
           $extDir = Join-Path $copilotHome.FullName "extensions"
           $missing = $expected | Where-Object { -not (Test-Path (Join-Path $extDir $_)) }

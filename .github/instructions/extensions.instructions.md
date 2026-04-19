@@ -16,7 +16,7 @@ Extensions register tools that the Copilot agent can invoke. Each tool has a `na
 ## Key patterns
 
 ### Worker process spawning
-**Never use `process.execPath` directly** — it points to `copilot.exe`, not Node. Use `resolveNodeBinary()` from `common.mjs` which probes `process.execPath` first and falls back to discovering `node` on PATH:
+**Never use `process.execPath` directly** — it points to `copilot.exe`, not Node. Use `resolveNodeBinary()` from the shared lib:
 ```js
 import { resolveNodeBinary } from "../lib/resolve-node.mjs";
 
