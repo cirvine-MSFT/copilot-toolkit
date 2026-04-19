@@ -550,9 +550,8 @@ body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
 
 .d2h-diff-tbody tr { border: none !important; }
 
-/* Line number cells */
-.d2h-code-linenumber,
-.d2h-code-side-linenumber {
+/* Line number cells — unified mode (full layout control) */
+.d2h-code-linenumber {
     background: var(--color-bg-subtle) !important;
     color: var(--color-diff-line-num) !important;
     border-right: 1px solid var(--color-border-muted) !important;
@@ -566,14 +565,27 @@ body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
     vertical-align: top !important;
 }
 
+/* Line number cells — side-by-side mode (colors only, let diff2html handle layout) */
+.d2h-code-side-linenumber {
+    background: var(--color-bg-subtle) !important;
+    color: var(--color-diff-line-num) !important;
+    border-color: var(--color-border-muted) !important;
+    user-select: none;
+    cursor: pointer;
+}
+
 .d2h-code-linenumber::after,
 .d2h-code-side-linenumber::after { content: none !important; }
 
-/* Code cells */
-.d2h-code-line,
-.d2h-code-side-line {
+/* Code cells — unified mode */
+.d2h-code-line {
     color: var(--color-fg-default) !important;
     padding: 0 12px !important;
+}
+
+/* Code cells — side-by-side mode (colors only) */
+.d2h-code-side-line {
+    color: var(--color-fg-default) !important;
 }
 
 .d2h-code-line-ctn { white-space: pre !important; }
