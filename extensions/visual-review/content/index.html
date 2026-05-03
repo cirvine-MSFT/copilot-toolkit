@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="styles.css">
     <!-- diff2html CSS (bundled locally to avoid CDN tracking prevention issues) -->
     <link rel="stylesheet" href="vendor/diff2html.min.css">
+    <script src="/__bridge.js"></script>
 </head>
 <body>
     <header class="vr-header">
@@ -100,7 +101,7 @@
                              0 0 1 12 7Zm0 10a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>
                 </svg>
                 <p>Waiting for diff data…</p>
-                <span class="vr-empty-hint">The Copilot CLI extension will send diff data over WebSocket.</span>
+                <span class="vr-empty-hint">Loading diff data…</span>
             </div>
             <div id="diffContainer"></div>
         </section>
@@ -132,6 +133,6 @@
         window.mermaid = mermaid;
         mermaid.initialize({ startOnLoad: false, theme: 'dark' });
     </script>
-    <script type="module" src="app.mjs"></script>
+    <script type="module" src="app.js"></script>
 </body>
 </html>

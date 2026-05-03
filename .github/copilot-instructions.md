@@ -10,7 +10,7 @@ A public collection of GitHub Copilot CLI extensions (and eventually skills/agen
 extensions/
   ado-pr-watcher/     # Azure DevOps PR monitoring extension
   ado-build-watcher/  # Azure DevOps build/pipeline monitoring extension
-  visual-review/      # Browser-based diff viewer with inline commenting
+  visual-review/      # Native webview diff viewer with inline commenting
   lib/                # Shared library (tab-indicator, resolve-node) used by extensions
 skills/# Future Copilot skills (empty placeholder)
 agents/               # Future Copilot agents (empty placeholder)

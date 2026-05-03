@@ -59,9 +59,10 @@ export class CommentStore {
      * @param {number} lineNumber
      * @param {string} side  "left" | "right"
      * @param {string} text  Initial comment body
+     * @param {number} [endLine=null]  Optional end line for multi-line comments
      * @returns {string} threadId
      */
-    addThread(filePath, lineNumber, side, text) {
+    addThread(filePath, lineNumber, side, text, endLine = null) {
         const threadId = generateId("t");
         const commentId = generateId("c");
 
@@ -69,6 +70,7 @@ export class CommentStore {
             id: threadId,
             filePath,
             line: lineNumber,
+            endLine: endLine ?? lineNumber,
             side,
             status: "active",
             comments: [

@@ -56,7 +56,7 @@ foreach ($ext in $extensions) {
     if (Test-Path $dst) { Remove-Item $dst -Recurse -Force }
     New-Item -ItemType Directory -Path $dst -Force | Out-Null
     Get-ChildItem $src | Copy-Item -Destination $dst -Recurse -Force
-    # Install npm dependencies if a package.json exists (e.g. visual-review uses ws)
+    # Install npm dependencies if a package.json exists (e.g. visual-review has runtime deps)
     $pkgJson = Join-Path $dst "package.json"
     if (Test-Path $pkgJson) {
         $npmCmd = Get-Command npm -ErrorAction SilentlyContinue

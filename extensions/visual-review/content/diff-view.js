@@ -5,8 +5,8 @@
 export class DiffView {
     /** @type {HTMLElement} */
     #container;
-    /** @type {import('./ws-client.mjs').WsClient} */
-    #ws;
+    /** @type {object} */
+    #transport;
     /** @type {'side-by-side'|'line-by-line'} */
     #outputFormat = 'side-by-side';
     /** Current raw diff string — kept for re-rendering when toggling format. */
@@ -26,11 +26,11 @@ export class DiffView {
 
     /**
      * @param {HTMLElement} container — the #diffContainer element
-     * @param {import('./ws-client.mjs').WsClient} ws
+     * @param {object} transport
      */
-    constructor(container, ws) {
+    constructor(container, transport) {
         this.#container = container;
-        this.#ws = ws;
+        this.#transport = transport;
         this.#treeMode = localStorage.getItem('vr-tree-mode') === 'true';
     }
 
@@ -358,33 +358,29 @@ export class DiffView {
         this.#insertThreadRow(thread, anchorRow);
         this.#updateFileTreeCommentCounts();
 
-        const payload = {
-            type: 'comment:new',
-            threadId,
-            filePath,
-            line: startLine,
-            endLine: endLine !== startLine ? endLine : undefined,
-            side,
-            body,
-        };
-
         if (this.#batchMode) {
-            this.#pendingComments.push(payload);
+            this.#pendingComments.push({ filePath, line: startLine, endLine: endLine !== startLine ? endLine : undefined, side, body });
             this.#updatePendingBadge();
         } else {
-            this.#ws.send(payload);
+            this.#transport.addComment(filePath, startLine, endLine, side, body)
+                .then(result => {
+                    if (result?.threads) this.updateComments(result.threads);
+                })
+                .catch(err => console.error('[diff-view] addComment failed:', err));
         }
     }
 
     /** Send all queued comments as a single batch. */
     submitPendingComments() {
         if (this.#pendingComments.length === 0) return;
-        this.#ws.send({
-            type: 'comment:batch',
-            comments: this.#pendingComments,
-        });
+        const batch = this.#pendingComments;
         this.#pendingComments = [];
         this.#updatePendingBadge();
+        this.#transport.submitBatch(batch)
+            .then(result => {
+                if (result?.threads) this.updateComments(result.threads);
+            })
+            .catch(err => console.error('[diff-view] submitBatch failed:', err));
     }
 
     /** Get pending comment count. */
@@ -463,11 +459,11 @@ export class DiffView {
             row.querySelector('.vr-comment-thread').innerHTML = this.#renderThreadContent(thread);
             this.#wireThreadReply(row, thread);
 
-            this.#ws.send({
-                type: 'comment:reply',
-                threadId: thread.id,
-                body,
-            });
+            this.#transport.addReply(thread.id, body)
+                .then(result => {
+                    if (result?.threads) this.updateComments(result.threads);
+                })
+                .catch(err => console.error('[diff-view] addReply failed:', err));
         });
 
         textarea?.addEventListener('keydown', (e) => {
@@ -479,7 +475,8 @@ export class DiffView {
         resolveBtn?.addEventListener('click', () => {
             row.classList.add('vr-resolved');
             row.querySelector('.vr-thread-reply')?.remove();
-            this.#ws.send({ type: 'comment:resolve', threadId: thread.id });
+            this.#transport.resolveThread(thread.id)
+                .catch(err => console.error('[diff-view] resolveThread failed:', err));
         });
     }
 

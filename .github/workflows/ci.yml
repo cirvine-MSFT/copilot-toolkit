@@ -22,14 +22,14 @@ jobs:
 
       - name: Syntax check extension files
         run: |
-          echo "Checking .mjs syntax..."
+          echo "Checking extension JavaScript syntax..."
           errors=0
-          for f in $(find extensions -name '*.mjs' -type f); do
+          while IFS= read -r f; do
             if ! node --check "$f" 2>&1; then
               echo "::error file=$f::Syntax error in $f"
               errors=$((errors + 1))
             fi
-          done
+          done < <(find extensions -type f \( -name '*.mjs' -o -name '*.js' \))
           if [ "$errors" -gt 0 ]; then
             echo "::error::$errors file(s) had syntax errors"
             exit 1
@@ -71,17 +71,18 @@ jobs:
           test -f "$COPILOT_HOME/extensions/ado-build-watcher/watcher-worker.mjs" || { echo "::error::ado-build-watcher/watcher-worker.mjs missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/visual-review/extension.mjs" || { echo "::error::visual-review/extension.mjs missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/visual-review/common.mjs" || { echo "::error::visual-review/common.mjs missing"; exit 1; }
-          test -f "$COPILOT_HOME/extensions/visual-review/server-worker.mjs" || { echo "::error::visual-review/server-worker.mjs missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/main.mjs" || { echo "::error::visual-review/main.mjs missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/visual-review/comment-store.mjs" || { echo "::error::visual-review/comment-store.mjs missing"; exit 1; }
-          test -f "$COPILOT_HOME/extensions/visual-review/web/index.html" || { echo "::error::visual-review/web/index.html missing"; exit 1; }
-          test -f "$COPILOT_HOME/extensions/visual-review/web/app.mjs" || { echo "::error::visual-review/web/app.mjs missing"; exit 1; }
-          test -f "$COPILOT_HOME/extensions/visual-review/web/styles.css" || { echo "::error::visual-review/web/styles.css missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/visual-review/package.json" || { echo "::error::visual-review/package.json missing"; exit 1; }
-          test -f "$COPILOT_HOME/extensions/visual-review/web/diff-view.mjs" || { echo "::error::visual-review/web/diff-view.mjs missing"; exit 1; }
-          test -f "$COPILOT_HOME/extensions/visual-review/web/ws-client.mjs" || { echo "::error::visual-review/web/ws-client.mjs missing"; exit 1; }
-          test -f "$COPILOT_HOME/extensions/visual-review/web/viz-panel.mjs" || { echo "::error::visual-review/web/viz-panel.mjs missing"; exit 1; }
-          test -f "$COPILOT_HOME/extensions/visual-review/web/vendor/diff2html-ui.min.js" || { echo "::error::visual-review/web/vendor/diff2html-ui.min.js missing"; exit 1; }
-          test -f "$COPILOT_HOME/extensions/visual-review/web/vendor/diff2html.min.css" || { echo "::error::visual-review/web/vendor/diff2html.min.css missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/lib/copilot-webview.js" || { echo "::error::visual-review/lib/copilot-webview.js missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/lib/webview-child.mjs" || { echo "::error::visual-review/lib/webview-child.mjs missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/content/index.html" || { echo "::error::visual-review/content/index.html missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/content/app.js" || { echo "::error::visual-review/content/app.js missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/content/styles.css" || { echo "::error::visual-review/content/styles.css missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/content/diff-view.js" || { echo "::error::visual-review/content/diff-view.js missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/content/viz-panel.js" || { echo "::error::visual-review/content/viz-panel.js missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/content/vendor/diff2html-ui.min.js" || { echo "::error::visual-review/content/vendor/diff2html-ui.min.js missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/visual-review/content/vendor/diff2html.min.css" || { echo "::error::visual-review/content/vendor/diff2html.min.css missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/lib/tab-indicator.mjs" || { echo "::error::lib/tab-indicator.mjs missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/lib/resolve-node.mjs" || { echo "::error::lib/resolve-node.mjs missing"; exit 1; }
           echo "All expected files present"
@@ -123,17 +124,18 @@ jobs:
             "ado-build-watcher/watcher-worker.mjs",
             "visual-review/extension.mjs",
             "visual-review/common.mjs",
-            "visual-review/server-worker.mjs",
+            "visual-review/main.mjs",
             "visual-review/comment-store.mjs",
-            "visual-review/web/index.html",
-            "visual-review/web/app.mjs",
-            "visual-review/web/styles.css",
             "visual-review/package.json",
-            "visual-review/web/diff-view.mjs",
-            "visual-review/web/ws-client.mjs",
-            "visual-review/web/viz-panel.mjs",
-            "visual-review/web/vendor/diff2html-ui.min.js",
-            "visual-review/web/vendor/diff2html.min.css",
+            "visual-review/lib/copilot-webview.js",
+            "visual-review/lib/webview-child.mjs",
+            "visual-review/content/index.html",
+            "visual-review/content/app.js",
+            "visual-review/content/styles.css",
+            "visual-review/content/diff-view.js",
+            "visual-review/content/viz-panel.js",
+            "visual-review/content/vendor/diff2html-ui.min.js",
+            "visual-review/content/vendor/diff2html.min.css",
             "lib/tab-indicator.mjs",
             "lib/resolve-node.mjs"
           )
@@ -187,17 +189,18 @@ jobs:
             "ado-build-watcher\watcher-worker.mjs",
             "visual-review\extension.mjs",
             "visual-review\common.mjs",
-            "visual-review\server-worker.mjs",
+            "visual-review\main.mjs",
             "visual-review\comment-store.mjs",
-            "visual-review\web\index.html",
-            "visual-review\web\app.mjs",
-            "visual-review\web\styles.css",
             "visual-review\package.json",
-            "visual-review\web\diff-view.mjs",
-            "visual-review\web\ws-client.mjs",
-            "visual-review\web\viz-panel.mjs",
-            "visual-review\web\vendor\diff2html-ui.min.js",
-            "visual-review\web\vendor\diff2html.min.css",
+            "visual-review\lib\copilot-webview.js",
+            "visual-review\lib\webview-child.mjs",
+            "visual-review\content\index.html",
+            "visual-review\content\app.js",
+            "visual-review\content\styles.css",
+            "visual-review\content\diff-view.js",
+            "visual-review\content\viz-panel.js",
+            "visual-review\content\vendor\diff2html-ui.min.js",
+            "visual-review\content\vendor\diff2html.min.css",
             "lib\tab-indicator.mjs",
             "lib\resolve-node.mjs"
           )

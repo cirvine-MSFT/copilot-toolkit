@@ -1,6 +1,1 @@
-# Dev tooling
-dev-tools/node_modules/
-
-# Generated screenshots
-test-fixtures/screenshot.png
-test-fixtures/*.png
+node_modules/

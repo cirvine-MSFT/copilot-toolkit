@@ -8,7 +8,7 @@ Personal collection of [GitHub Copilot CLI](https://docs.github.com/en/copilot/u
 |-----------|---------------|-------------|
 | **ado-pr-watcher** | `pr_watcher_start`, `pr_watcher_list`, `pr_watcher_stop` | Watches Azure DevOps pull requests for reviewer activity, comment threads, negative votes, and blocking policy failures. Injects follow-up prompts so the Copilot agent can act as the PR author. |
 | **ado-build-watcher** | `build_watcher_start`, `build_watcher_list`, `build_watcher_stop` | Watches Azure DevOps build/pipeline runs and notifies the session when they complete or fail, enabling automatic diagnosis and next-step continuation. |
-| **visual-review** | `visual_review_start`, `visual_review_stop`, `visual_review_status`, `visual_review_send_visualization` | Launches a browser-based visual diff reviewer with GitHub-style inline commenting. Comments flow back to the Copilot CLI session in real time via WebSocket, enabling interactive code review without leaving the terminal. |
+| **visual-review** | `visual_review_start`, `visual_review_stop`, `visual_review_status`, `visual_review_send_visualization` | Launches a native webview diff reviewer with GitHub-style inline commenting. Comments flow back to the Copilot CLI session in real time, enabling interactive code review without leaving the terminal. |
 
 ### Quick start
 
@@ -35,7 +35,7 @@ You don't call the tools directly — just describe what you want in natural lan
 
 ### Visual Review
 
-The visual-review extension opens a browser-based diff viewer connected to your Copilot CLI session. It shows your changes with GitHub-style inline commenting — you leave comments in the browser, Copilot responds, and replies appear inline.
+The visual-review extension opens a native webview diff viewer connected to your Copilot CLI session. It shows your changes with GitHub-style inline commenting — you leave comments in the window, Copilot responds, and replies appear inline.
 
 #### How to use
 
@@ -67,7 +67,7 @@ Send this architecture diagram to the visual review
 
 #### What you see
 
-The browser UI has two panels:
+The native review window has two panels:
 
 1. **Files Changed** — A GitHub-style diff view with:
    - Side-by-side or unified diff layout
@@ -84,18 +84,18 @@ The browser UI has two panels:
 
 #### Comment workflow
 
-1. In the browser, hover over a line number → click the blue "+" button
+1. In the review window, hover over a line number → click the blue "+" button
 2. Type your comment and click "Comment"
 3. The comment appears in your Copilot CLI session as a follow-up prompt
 4. Copilot reads the comment, understands the context, and responds
-5. The response appears inline in the browser as a threaded reply
+5. The response appears inline in the review window as a threaded reply
 6. Continue the conversation — each reply goes back and forth in real time
 
 #### Requirements
 
-- A modern web browser (Chrome, Edge, Firefox, Safari)
+- A desktop environment with native webview support
 - Git repository with changes to review
-- No additional tools beyond what the CLI extensions already need
+- No Azure CLI or Azure DevOps access required
 
 ### How watchers work
 
@@ -183,7 +183,7 @@ copilot plugin install cirvine-msft/copilot-toolkit
 - [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) with the Azure DevOps extension
 - Azure DevOps access for the repos/pipelines you want to watch
 
-> **Note:** The visual-review extension only requires a web browser and git. It does not need Azure CLI or Azure DevOps access.
+> **Note:** The visual-review extension only requires Git and native webview support on your machine. It does not need Azure CLI or Azure DevOps access.
 
 ### Azure CLI setup
 

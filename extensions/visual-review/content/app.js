@@ -1,37 +1,105 @@
 /**
- * Application entry point — orchestrates WebSocket, tabs, and views.
+ * Application entry point — orchestrates copilot bridge, tabs, and views.
+ * Uses window.copilot (injected by /__bridge.js) for extension communication.
  */
-import { DiffView } from './diff-view.mjs';
-import { VizPanel } from './viz-panel.mjs';
-import { WsClient } from './ws-client.mjs';
+import { DiffView } from './diff-view.js';
+import { VizPanel } from './viz-panel.js';
 
-// ── Initialize WebSocket ──────────────────────────────────────
-const ws = new WsClient();
+// ── Transport adapter for DiffView ────────────────────────────
+const transport = {
+    addComment: (filePath, line, endLine, side, text) =>
+        copilot.addComment(filePath, line, endLine, side, text),
+    addReply: (threadId, text) =>
+        copilot.addReply(threadId, text),
+    resolveThread: (threadId) =>
+        copilot.resolveThread(threadId),
+    submitBatch: (comments) =>
+        copilot.submitBatch(comments),
+};
 
 // ── Initialize views ──────────────────────────────────────────
-const diffView = new DiffView(document.getElementById('diffContainer'), ws);
+const diffView = new DiffView(document.getElementById('diffContainer'), transport);
 const vizPanel = new VizPanel(document.getElementById('vizContainer'));
 
-// ── Handle incoming WebSocket messages ────────────────────────
-ws.on('diff:data', (data) => diffView.render(data));
-ws.on('comment:update', (data) => diffView.updateComments(data.threads ?? []));
-ws.on('comment:agent_reply', (data) => diffView.addAgentReply(data.threadId, data.text));
-ws.on('viz:data', (data) => vizPanel.addVisualization(data));
+// ── Expose global functions for extension push via eval() ─────
+// The extension calls webview.eval('window.addAgentReply(...)') to push data.
+// These are best-effort live updates — stored state is the source of truth.
+window.addAgentReply = (threadId, text) => {
+    diffView.addAgentReply(threadId, text);
+};
+
+window.addVisualization = (data) => {
+    vizPanel.addVisualization(data);
+};
+
+window.updateComments = (threads) => {
+    diffView.updateComments(threads);
+};
+
+window.updateDiff = (data) => {
+    diffView.render(data);
+};
 
 // ── Connection status indicator ───────────────────────────────
 const statusEl = document.getElementById('connectionStatus');
 
-ws.on('open', () => {
+function setConnected() {
     statusEl.classList.add('connected');
     statusEl.classList.remove('disconnected');
     statusEl.querySelector('.vr-status-text').textContent = 'Connected';
-});
+}
 
-ws.on('close', () => {
+function setDisconnected() {
     statusEl.classList.remove('connected');
     statusEl.classList.add('disconnected');
     statusEl.querySelector('.vr-status-text').textContent = 'Disconnected';
-});
+}
+
+// ── Initialize: load config, diff, comments, and viz ──────────
+async function init() {
+    try {
+        // Get initial config
+        const config = await copilot.getConfig();
+        
+        // Apply theme
+        if (config.theme) {
+            document.documentElement.dataset.theme = config.theme;
+            // Also update mermaid theme if loaded
+            if (window.mermaid) {
+                window.mermaid.initialize({ startOnLoad: false, theme: config.theme === 'dark' ? 'dark' : 'default' });
+            }
+        }
+
+        // Set scope dropdown
+        const scopeSelect = document.getElementById('scopeSelect');
+        if (scopeSelect && config.scope) {
+            scopeSelect.value = config.scope;
+        }
+
+        setConnected();
+
+        // Load diff data
+        const diffData = await copilot.getDiff();
+        diffView.render(diffData);
+
+        // Load existing comments
+        const threads = await copilot.getComments();
+        if (threads && threads.length > 0) {
+            diffView.updateComments(threads);
+        }
+
+        // Load existing visualizations
+        const vizs = await copilot.getVisualizations();
+        if (vizs && vizs.length > 0) {
+            for (const viz of vizs) {
+                await vizPanel.addVisualization(viz);
+            }
+        }
+    } catch (err) {
+        console.error('[visual-review] init failed:', err);
+        setDisconnected();
+    }
+}
 
 // ── Tab switching ─────────────────────────────────────────────
 const diffPanel = document.getElementById('diffPanel');
@@ -39,7 +107,6 @@ const vizPanelEl = document.getElementById('vizPanel');
 
 document.querySelectorAll('.vr-tab').forEach(tab => {
     tab.addEventListener('click', () => {
-        // Update active tab
         document.querySelectorAll('.vr-tab').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
 
@@ -63,14 +130,12 @@ viewToggle.addEventListener('click', () => {
 // ── Scope toggle ──────────────────────────────────────────────
 const scopeSelect = document.getElementById('scopeSelect');
 if (scopeSelect) {
-    scopeSelect.addEventListener('change', () => {
-        ws.send({ type: 'diff:refresh', scope: scopeSelect.value });
-    });
-
-    // Sync dropdown when server reports a different scope
-    ws.on('diff:data', (data) => {
-        if (data.scope && scopeSelect.value !== data.scope) {
-            scopeSelect.value = data.scope;
+    scopeSelect.addEventListener('change', async () => {
+        try {
+            const data = await copilot.getDiff(scopeSelect.value);
+            diffView.render(data);
+        } catch (err) {
+            console.error('[visual-review] scope change failed:', err);
         }
     });
 }
@@ -87,7 +152,6 @@ sidebarToggle.addEventListener('click', () => {
 // ── Tree / flat view toggle ──────────────────────────────────
 const treeToggle = document.getElementById('treeToggle');
 if (treeToggle) {
-    // Sync button title with initial state
     if (diffView.treeMode) {
         treeToggle.title = 'Switch to flat view';
     }
@@ -101,7 +165,6 @@ if (treeToggle) {
 const submitAllBtn = document.getElementById('submitAllBtn');
 const pendingBadge = document.getElementById('pendingBadge');
 
-// Watch for pending badge changes to show/hide the submit button
 const observer = new MutationObserver(() => {
     submitAllBtn.classList.toggle('hidden', !pendingBadge.classList.contains('has-pending'));
 });
@@ -110,3 +173,6 @@ observer.observe(pendingBadge, { attributes: true, attributeFilter: ['class'] })
 submitAllBtn.addEventListener('click', () => {
     diffView.submitPendingComments();
 });
+
+// ── Start initialization ──────────────────────────────────────
+init();
