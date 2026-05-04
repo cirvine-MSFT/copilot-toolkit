@@ -380,11 +380,6 @@ export class DiffView {
         tr.after(formRow);
         this.#openForm = formRow;
 
-        // Scroll the form into view so buttons are visible
-        requestAnimationFrame(() => {
-            formRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        });
-
         const textarea = formRow.querySelector('.vr-comment-textarea');
         textarea.focus();
 
