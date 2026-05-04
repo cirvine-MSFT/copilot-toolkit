@@ -11,7 +11,9 @@ let visualizations = [];
 
 function initCommentStore() {
     if (!commentStore) {
-        const storeId = `vr-${Date.now().toString(36)}`;
+        // Deterministic ID based on cwd so threads persist across extension reloads
+        const cwdHash = Buffer.from(process.cwd()).toString("base64url").slice(0, 12);
+        const storeId = `vr-${cwdHash}`;
         commentStore = new CommentStore(storeId);
         commentStore.load();
     }
