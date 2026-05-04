@@ -185,13 +185,23 @@ sidebarToggle.addEventListener('click', () => {
 
 // ── Tree / flat view toggle ──────────────────────────────────
 const treeToggle = document.getElementById('treeToggle');
+const treeToggleIcon = document.getElementById('treeToggleIcon');
+
+// Tree icon (shows hierarchy) — displayed when in flat mode (click to switch to tree)
+const ICON_TREE = '<path d="M4.75 7a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5h-4.5ZM5 4.75A.75.75 0 0 1 5.75 4h5.5a.75.75 0 0 1 0 1.5h-5.5A.75.75 0 0 1 5 4.75ZM6.75 10a.75.75 0 0 0 0 1.5h2.5a.75.75 0 0 0 0-1.5h-2.5Z"/><path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v12.5A1.75 1.75 0 0 1 14.25 16H1.75A1.75 1.75 0 0 1 0 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h12.5a.25.25 0 0 0 .25-.25V1.75a.25.25 0 0 0-.25-.25Z"/>';
+// List icon (flat lines) — displayed when in tree mode (click to switch to flat)
+const ICON_LIST = '<path d="M2 4a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm3.75-1.5a.75.75 0 0 0 0 1.5h8.5a.75.75 0 0 0 0-1.5h-8.5Zm0 5a.75.75 0 0 0 0 1.5h8.5a.75.75 0 0 0 0-1.5h-8.5Zm0 5a.75.75 0 0 0 0 1.5h8.5a.75.75 0 0 0 0-1.5h-8.5ZM2 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm0 5a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/>';
+
+function updateTreeToggleIcon(isTree) {
+    treeToggleIcon.innerHTML = isTree ? ICON_LIST : ICON_TREE;
+    treeToggle.title = isTree ? 'Switch to flat list' : 'Switch to tree view';
+}
+
 if (treeToggle) {
-    if (diffView.treeMode) {
-        treeToggle.title = 'Switch to flat view';
-    }
+    updateTreeToggleIcon(diffView.treeMode);
     treeToggle.addEventListener('click', () => {
         const isTree = diffView.toggleTreeMode();
-        treeToggle.title = isTree ? 'Switch to flat view' : 'Switch to tree view';
+        updateTreeToggleIcon(isTree);
     });
 }
 
