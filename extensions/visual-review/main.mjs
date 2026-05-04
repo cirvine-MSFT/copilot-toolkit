@@ -13,12 +13,15 @@ let currentSessionId = null;
 
 function initStores(sessionId) {
     if (sessionId) currentSessionId = sessionId;
-    if (!commentStore && currentSessionId) {
-        commentStore = new CommentStore(currentSessionId);
+    // Fallback: generate a stable ID from cwd if session ID isn't available yet
+    // (happens after extensions_reload when onSessionStart doesn't re-fire)
+    const storeId = currentSessionId || `fallback-${Buffer.from(process.cwd()).toString("base64url").slice(0, 12)}`;
+    if (!commentStore) {
+        commentStore = new CommentStore(storeId);
         commentStore.load();
     }
-    if (!vizStore && currentSessionId) {
-        vizStore = new VizStore(currentSessionId);
+    if (!vizStore) {
+        vizStore = new VizStore(storeId);
         vizStore.load();
     }
     return { commentStore, vizStore };
@@ -137,13 +140,13 @@ const customTools = [
                 },
             },
         },
-        handler: async (args) => {
+        handler: async (args, invocation) => {
             currentConfig = {
                 scope: args?.scope ?? "branch",
                 base: args?.base ?? "main",
                 theme: args?.theme ?? "dark",
             };
-            initStores();
+            initStores(invocation?.sessionId);
             const wasOpen = !!webview._handle;
             await webview.show({ reload: wasOpen });
             const scope = currentConfig.scope;
