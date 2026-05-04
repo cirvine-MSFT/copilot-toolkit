@@ -363,7 +363,7 @@ export class DiffView {
                             <button class="vr-comment-tab" data-preview>Preview</button>
                             <span class="vr-comment-line-label">${lineLabel}</span>
                         </div>
-                        <textarea class="vr-comment-textarea" placeholder="Leave a comment (Ctrl+Enter to submit)" rows="4"></textarea>
+                        <textarea class="vr-comment-textarea" placeholder="Leave a comment (Ctrl+Enter to submit)" rows="3"></textarea>
                         <div class="vr-comment-preview hidden"></div>
                         <div class="vr-comment-actions">
                             <label class="vr-batch-toggle">
@@ -379,6 +379,11 @@ export class DiffView {
 
         tr.after(formRow);
         this.#openForm = formRow;
+
+        // Scroll the form into view so buttons are visible
+        requestAnimationFrame(() => {
+            formRow.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        });
 
         const textarea = formRow.querySelector('.vr-comment-textarea');
         textarea.focus();
