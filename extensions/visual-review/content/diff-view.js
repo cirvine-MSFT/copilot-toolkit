@@ -230,7 +230,6 @@ export class DiffView {
             // Drag to select: mousedown starts drag
             cell.addEventListener('mousedown', (e) => {
                 if (e.button !== 0) return;
-                if (e.target.closest('.vr-add-comment-btn')) return;
                 const { filePath, line, side } = this.#resolveLineInfo(cell, cell.closest('tr'));
                 if (!line) return;
                 e.preventDefault(); // prevent text selection
@@ -257,10 +256,8 @@ export class DiffView {
             const rangeStartLine = Math.min(startLine, endLine);
             const rangeEndLine = Math.max(startLine, endLine);
             if (rangeStartLine === rangeEndLine) {
-                // Single line — just show the "+" trigger, don't auto-open form
-                this.#clearRangeHighlight();
-                this.#rangeStart = { startCell, startLine, side, filePath };
-                startCell.closest('tr')?.classList.add('vr-range-selected');
+                // Single line — open comment form directly
+                this.#openCommentForm(startCell);
             } else {
                 this.#openCommentForm(lastCell || startCell, { startLine: rangeStartLine, endLine: rangeEndLine });
             }
