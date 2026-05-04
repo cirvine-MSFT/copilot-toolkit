@@ -526,7 +526,7 @@ body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
     border: 1px solid var(--color-border-default) !important;
     border-radius: 6px !important;
     margin-bottom: 16px !important;
-    overflow: hidden;
+    overflow: clip;
 }
 
 .d2h-file-wrapper.vr-highlight {
@@ -811,6 +811,7 @@ del.d2h-change {
     justify-content: flex-end;
     gap: 8px;
     margin-top: 8px;
+    flex-wrap: wrap;
 }
 
 .vr-comment-thread-row,
