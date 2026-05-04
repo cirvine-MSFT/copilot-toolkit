@@ -41,6 +41,20 @@ const transport = {
 const diffView = new DiffView(document.getElementById('diffContainer'), transport);
 const vizPanel = new VizPanel(document.getElementById('vizContainer'));
 
+// ── Viz badge helper ──────────────────────────────────────────
+let vizCount = 0;
+const vizBadge = document.getElementById('vizBadge');
+
+function updateVizBadge(count) {
+    vizCount = count ?? vizCount;
+    if (vizCount > 0) {
+        vizBadge.textContent = vizCount;
+        vizBadge.classList.remove('hidden');
+    } else {
+        vizBadge.classList.add('hidden');
+    }
+}
+
 // ── Expose global functions for extension push via eval() ─────
 // The extension calls webview.eval('window.addAgentReply(...)') to push data.
 // These are best-effort live updates — stored state is the source of truth.
@@ -50,6 +64,8 @@ window.addAgentReply = (threadId, text) => {
 
 window.addVisualization = (data) => {
     vizPanel.addVisualization(data);
+    vizCount++;
+    updateVizBadge();
 };
 
 window.updateComments = (threads) => {
@@ -127,6 +143,7 @@ async function init() {
             for (const viz of vizs) {
                 await vizPanel.addVisualization(viz);
             }
+            updateVizBadge(vizs.length);
         }
     } catch (err) {
         console.error('[visual-review] init failed:', err);

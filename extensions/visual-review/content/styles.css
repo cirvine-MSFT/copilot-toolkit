@@ -1062,6 +1062,22 @@ del.d2h-change {
 }
 .vr-pending-badge:empty { display: none; }
 
+.vr-viz-badge {
+    font-size: 10px;
+    font-weight: 600;
+    color: #ffffff;
+    background: var(--color-done-fg);
+    border-radius: 10px;
+    padding: 1px 6px;
+    margin-left: 4px;
+    animation: vr-badge-pop 0.3s ease-out;
+}
+.vr-viz-badge.hidden { display: none; }
+@keyframes vr-badge-pop {
+    from { transform: scale(0); }
+    to { transform: scale(1); }
+}
+
 .vr-btn-submit-all {
     font-size: 13px;
     padding: 4px 12px;
