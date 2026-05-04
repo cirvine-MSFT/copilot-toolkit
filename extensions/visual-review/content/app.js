@@ -6,15 +6,35 @@ import { DiffView } from './diff-view.js';
 import { VizPanel } from './viz-panel.js';
 
 // ── Transport adapter for DiffView ────────────────────────────
+function showToast(message, isError = false) {
+    const existing = document.querySelector('.vr-toast');
+    if (existing) existing.remove();
+    const toast = document.createElement('div');
+    toast.className = `vr-toast ${isError ? 'vr-toast-error' : 'vr-toast-info'}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+}
+
+async function safeCall(fn, errorMsg) {
+    try {
+        return await fn();
+    } catch (err) {
+        console.error(errorMsg, err);
+        showToast(`${errorMsg} — try reloading (↻)`, true);
+        throw err;
+    }
+}
+
 const transport = {
     addComment: (filePath, line, endLine, side, text) =>
-        copilot.addComment(filePath, line, endLine, side, text),
+        safeCall(() => copilot.addComment(filePath, line, endLine, side, text), 'Failed to submit comment'),
     addReply: (threadId, text) =>
-        copilot.addReply(threadId, text),
+        safeCall(() => copilot.addReply(threadId, text), 'Failed to send reply'),
     resolveThread: (threadId) =>
-        copilot.resolveThread(threadId),
+        safeCall(() => copilot.resolveThread(threadId), 'Failed to resolve thread'),
     submitBatch: (comments) =>
-        copilot.submitBatch(comments),
+        safeCall(() => copilot.submitBatch(comments), 'Failed to submit batch'),
 };
 
 // ── Initialize views ──────────────────────────────────────────
@@ -40,19 +60,33 @@ window.updateDiff = (data) => {
     diffView.render(data);
 };
 
-// ── Connection status indicator ───────────────────────────────
+// ── Connection health monitoring ──────────────────────────────
 const statusEl = document.getElementById('connectionStatus');
+let isConnected = false;
 
 function setConnected() {
+    isConnected = true;
     statusEl.classList.add('connected');
     statusEl.classList.remove('disconnected');
     statusEl.querySelector('.vr-status-text').textContent = 'Connected';
 }
 
 function setDisconnected() {
+    isConnected = false;
     statusEl.classList.remove('connected');
     statusEl.classList.add('disconnected');
-    statusEl.querySelector('.vr-status-text').textContent = 'Disconnected';
+    statusEl.querySelector('.vr-status-text').textContent = 'Disconnected — click reload ↻';
+}
+
+// Periodic heartbeat — detect dropped WebSocket
+setInterval(async () => {
+    try {
+        await copilot.getConfig();
+        if (!isConnected) setConnected();
+    } catch {
+        if (isConnected) setDisconnected();
+    }
+}, 5000);
 }
 
 // ── Initialize: load config, diff, comments, and viz ──────────
