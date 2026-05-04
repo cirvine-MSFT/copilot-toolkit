@@ -176,3 +176,61 @@ submitAllBtn.addEventListener('click', () => {
 
 // ── Start initialization ──────────────────────────────────────
 init();
+
+// ── Reload button (WebView2 input freeze recovery) ───────────
+const reloadBtn = document.getElementById('reloadBtn');
+if (reloadBtn) {
+    reloadBtn.addEventListener('click', () => location.reload());
+}
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'F5') { e.preventDefault(); location.reload(); }
+});
+
+// ── Comment navigation ───────────────────────────────────────
+const commentNav = document.getElementById('commentNav');
+const commentNavLabel = document.getElementById('commentNavLabel');
+const prevCommentBtn = document.getElementById('prevComment');
+const nextCommentBtn = document.getElementById('nextComment');
+
+function updateCommentNav() {
+    const count = diffView.commentCount;
+    if (count > 0) {
+        commentNav.classList.remove('hidden');
+        commentNavLabel.textContent = `${count}`;
+    } else {
+        commentNav.classList.add('hidden');
+    }
+}
+
+// Update nav visibility whenever comments change
+const origUpdateComments = diffView.updateComments.bind(diffView);
+diffView.updateComments = (threads) => {
+    origUpdateComments(threads);
+    updateCommentNav();
+};
+
+const origAddAgentReply = diffView.addAgentReply.bind(diffView);
+diffView.addAgentReply = (threadId, text) => {
+    origAddAgentReply(threadId, text);
+    updateCommentNav();
+};
+
+prevCommentBtn.addEventListener('click', () => {
+    const pos = diffView.navigateComment('prev');
+    commentNavLabel.textContent = `${pos.current}/${pos.total}`;
+});
+
+nextCommentBtn.addEventListener('click', () => {
+    const pos = diffView.navigateComment('next');
+    commentNavLabel.textContent = `${pos.current}/${pos.total}`;
+});
+
+// Keyboard shortcuts: F7 = next, Shift+F7 = prev
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'F7') {
+        e.preventDefault();
+        const dir = e.shiftKey ? 'prev' : 'next';
+        const pos = diffView.navigateComment(dir);
+        commentNavLabel.textContent = `${pos.current}/${pos.total}`;
+    }
+});

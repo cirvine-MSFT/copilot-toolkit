@@ -102,6 +102,54 @@ export class DiffView {
     /** Whether tree view is active. */
     get treeMode() { return this.#treeMode; }
 
+    /** Number of comment threads. */
+    get commentCount() { return this.#threads.size; }
+
+    /**
+     * Navigate to the next or previous comment thread.
+     * @param {'next'|'prev'} direction
+     * @returns {{ current: number, total: number }} position after navigation
+     */
+    navigateComment(direction) {
+        const rows = Array.from(this.#container.querySelectorAll('.vr-comment-thread-row'));
+        if (rows.length === 0) return { current: 0, total: 0 };
+
+        const panel = this.#container.closest('.vr-panel') ?? this.#container.parentElement;
+        const scrollTop = panel.scrollTop;
+        const panelTop = panel.getBoundingClientRect().top;
+
+        // Find which comment is currently in view (closest to top of viewport)
+        let currentIdx = -1;
+        for (let i = 0; i < rows.length; i++) {
+            const rect = rows[i].getBoundingClientRect();
+            if (rect.top >= panelTop - 10) {
+                currentIdx = i;
+                break;
+            }
+        }
+        if (currentIdx === -1) currentIdx = rows.length - 1;
+
+        let targetIdx;
+        if (direction === 'next') {
+            // If current comment is already visible, go to next one
+            const currentRect = rows[currentIdx].getBoundingClientRect();
+            if (currentRect.top < panelTop + 50 && currentRect.top > panelTop - 50) {
+                targetIdx = (currentIdx + 1) % rows.length;
+            } else {
+                targetIdx = currentIdx;
+            }
+        } else {
+            targetIdx = currentIdx > 0 ? currentIdx - 1 : rows.length - 1;
+        }
+
+        rows[targetIdx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Brief highlight
+        rows[targetIdx].classList.add('vr-highlight');
+        setTimeout(() => rows[targetIdx].classList.remove('vr-highlight'), 1500);
+
+        return { current: targetIdx + 1, total: rows.length };
+    }
+
     /**
      * Toggle between flat and tree view in the sidebar.
      * @returns {boolean} The new tree mode state.

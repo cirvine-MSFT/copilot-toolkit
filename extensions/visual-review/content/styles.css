@@ -287,6 +287,27 @@ body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
 }
 .vr-btn-icon:hover { background: var(--color-bg-muted); color: var(--color-fg-default); }
 
+/* ── Comment navigation ─────────────────────────────────────── */
+.vr-comment-nav {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin-right: 4px;
+}
+.vr-comment-nav.hidden { display: none; }
+.vr-btn-nav {
+    padding: 3px 5px;
+    min-width: unset;
+}
+.vr-comment-nav-label {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--color-fg-muted);
+    min-width: 28px;
+    text-align: center;
+    user-select: none;
+}
+
 /* ── Scope selector ──────────────────────────────────────────── */
 .vr-scope-select {
     padding: 4px 8px;
