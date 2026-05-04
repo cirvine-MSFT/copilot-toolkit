@@ -2,21 +2,26 @@ import { joinSession } from "@github/copilot-sdk/extension";
 import { join } from "node:path";
 import { CopilotWebview } from "./lib/copilot-webview.js";
 import { CommentStore } from "./comment-store.mjs";
+import { VizStore } from "./viz-store.mjs";
 import { getDiffOutput, formatError, nowIso } from "./common.mjs";
 
 const extensionDir = import.meta.dirname;
 let currentConfig = { scope: "branch", base: "main", theme: "dark" };
 let commentStore = null;
+let vizStore = null;
 let currentSessionId = null;
-let visualizations = [];
 
-function initCommentStore(sessionId) {
+function initStores(sessionId) {
     if (sessionId) currentSessionId = sessionId;
     if (!commentStore && currentSessionId) {
         commentStore = new CommentStore(currentSessionId);
         commentStore.load();
     }
-    return commentStore;
+    if (!vizStore && currentSessionId) {
+        vizStore = new VizStore(currentSessionId);
+        vizStore.load();
+    }
+    return { commentStore, vizStore };
 }
 
 function parseDiffFiles(diffText) {
@@ -61,7 +66,7 @@ const webview = new CopilotWebview({
         },
 
         addComment: async (filePath, line, endLine, side, text) => {
-            const store = initCommentStore();
+            const { commentStore: store } = initStores();
             const threadId = store.addThread(filePath, line, side, text, endLine);
             session.send({
                 prompt: buildCommentPrompt({ filePath, lineNumber: line, commentText: text, threadId }),
@@ -71,24 +76,24 @@ const webview = new CopilotWebview({
         },
 
         addReply: (threadId, text) => {
-            const store = initCommentStore();
+            const { commentStore: store } = initStores();
             store.addReply(threadId, "user", text);
             return { threads: store.getThreads() };
         },
 
         resolveThread: (threadId) => {
-            const store = initCommentStore();
+            const { commentStore: store } = initStores();
             store.resolveThread(threadId);
             return { threads: store.getThreads() };
         },
 
         getComments: () => {
-            const store = initCommentStore();
+            const { commentStore: store } = initStores();
             return store.getThreads();
         },
 
         submitBatch: async (comments) => {
-            const store = initCommentStore();
+            const { commentStore: store } = initStores();
             for (const c of comments) {
                 const threadId = store.addThread(c.filePath, c.line, c.side ?? "right", c.body ?? c.text, c.endLine);
                 session.send({
@@ -99,7 +104,10 @@ const webview = new CopilotWebview({
             return { threads: store.getThreads() };
         },
 
-        getVisualizations: () => visualizations,
+        getVisualizations: () => {
+            const { vizStore: vs } = initStores();
+            return vs ? vs.getAll() : [];
+        },
     },
 });
 
@@ -135,10 +143,23 @@ const customTools = [
                 base: args?.base ?? "main",
                 theme: args?.theme ?? "dark",
             };
-            initCommentStore();
+            initStores();
             const wasOpen = !!webview._handle;
             await webview.show({ reload: wasOpen });
             const scope = currentConfig.scope;
+
+            // Non-blocking: ask agent to generate diagrams if none exist yet
+            if (vizStore && vizStore.getAll().length === 0) {
+                session.send({
+                    prompt: [
+                        "The visual review window just opened. Generate 1-2 Mermaid diagrams that illustrate the key architectural changes in this branch's diff.",
+                        "Use the visual_review_send_visualization tool for each diagram. Good candidates: component/module relationships (graph), request/data flows (sequence), or before→after architecture.",
+                        "Keep diagrams concise and focused on what changed. Do NOT ask for confirmation — just generate them.",
+                    ].join("\n"),
+                    mode: "enqueue",
+                }).catch(() => {});
+            }
+
             return [
                 "Visual review window opened.",
                 `Scope: ${scope}${scope === "branch" ? ` (base: ${currentConfig.base})` : ""} | Theme: ${currentConfig.theme}`,
@@ -160,10 +181,11 @@ const customTools = [
         parameters: { type: "object", properties: {} },
         handler: async () => {
             const isOpen = !!webview._handle;
-            const store = initCommentStore();
-            const threads = store.getThreads();
+            const { commentStore: cs, vizStore: vs } = initStores();
+            const threads = cs ? cs.getThreads() : [];
             const active = threads.filter((t) => t.status === "active").length;
             const resolved = threads.filter((t) => t.status === "resolved").length;
+            const vizCount = vs ? vs.getAll().length : 0;
             if (!isOpen) {
                 return "No active visual review window. Use visual_review_start to launch one.";
             }
@@ -171,7 +193,7 @@ const customTools = [
                 "Visual review window is open.",
                 `Scope: ${currentConfig.scope}${currentConfig.scope === "branch" ? ` (base: ${currentConfig.base})` : ""} | Theme: ${currentConfig.theme}`,
                 `Comments: ${active} active, ${resolved} resolved`,
-                `Visualizations: ${visualizations.length}`,
+                `Visualizations: ${vizCount}`,
             ].join("\n");
         },
     },
@@ -193,7 +215,8 @@ const customTools = [
                 mermaid: args.mermaid,
                 description: args.description ?? null,
             };
-            visualizations.push(viz);
+            const { vizStore: vs } = initStores();
+            if (vs) vs.add(viz);
             try {
                 await webview.eval(`window.addVisualization(${JSON.stringify(viz)})`);
             } catch {
@@ -217,7 +240,7 @@ const customTools = [
             if (!args.threadId || !args.text) {
                 return "Both threadId and text are required.";
             }
-            const store = initCommentStore();
+            const { commentStore: store } = initStores();
             const commentId = store.addReply(args.threadId, "Copilot", args.text);
             if (!commentId) {
                 return `Thread ${args.threadId} not found.`;
@@ -238,13 +261,13 @@ const session = await joinSession({
         name: "visual-review",
         description: "Open the visual review window for code diff viewing and commenting.",
         handler: async () => {
-            initCommentStore();
+            initStores();
             await webview.show();
         },
     }],
     hooks: {
         onSessionStart: (_input, invocation) => {
-            initCommentStore(invocation.sessionId);
+            initStores(invocation.sessionId);
         },
         onSessionEnd: webview.close,
     },
