@@ -707,6 +707,7 @@ del.d2h-change {
     overflow: visible !important;
     cursor: pointer;
     transition: background-color 0.1s;
+    user-select: none;
 }
 
 .vr-line-gutter:hover {

@@ -17,6 +17,8 @@ export class DiffView {
     #openForm = null;
     /** Multi-line selection state: { startCell, startLine, side, filePath } */
     #rangeStart = null;
+    /** Whether a drag selection is in progress */
+    #dragging = false;
     /** Queued (pending) comments for batch mode */
     #pendingComments = [];
     /** Whether to send comments immediately or queue them */
@@ -205,8 +207,15 @@ export class DiffView {
         const lineNumCells = this.#container.querySelectorAll('.d2h-code-linenumber, .d2h-code-side-linenumber');
         for (const cell of lineNumCells) {
             cell.classList.add('vr-line-gutter');
-            cell.addEventListener('mouseenter', () => this.#showTrigger(cell));
+            cell.addEventListener('mouseenter', () => {
+                if (this.#dragging) {
+                    this.#handleDragOver(cell);
+                } else {
+                    this.#showTrigger(cell);
+                }
+            });
             cell.addEventListener('mouseleave', (e) => {
+                if (this.#dragging) return;
                 const related = e.relatedTarget;
                 if (related && related.closest('.vr-add-comment-btn')) return;
                 this.#hideTrigger(cell);
@@ -214,9 +223,59 @@ export class DiffView {
             // Click on line number to start/extend range selection
             cell.addEventListener('click', (e) => {
                 if (e.target.closest('.vr-add-comment-btn')) return;
+                // Skip if drag already handled this interaction
+                if (this.#dragging) return;
                 this.#handleLineClick(cell, e.shiftKey);
             });
+            // Drag to select: mousedown starts drag
+            cell.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return;
+                if (e.target.closest('.vr-add-comment-btn')) return;
+                const { filePath, line, side } = this.#resolveLineInfo(cell, cell.closest('tr'));
+                if (!line) return;
+                e.preventDefault(); // prevent text selection
+                this.#closeCommentForm();
+                this.#clearRangeHighlight();
+                this.#dragging = true;
+                this.#rangeStart = { startCell: cell, startLine: line, side, filePath };
+                cell.closest('tr')?.classList.add('vr-range-selected');
+            });
         }
+
+        // Global mouseup ends drag and opens form
+        const onMouseUp = () => {
+            if (!this.#dragging || !this.#rangeStart) return;
+            this.#dragging = false;
+            const { startCell, startLine, side, filePath } = this.#rangeStart;
+            // Find the current end of the highlighted range
+            const highlighted = this.#container.querySelectorAll('.vr-range-selected');
+            if (highlighted.length === 0) return;
+            const lastRow = highlighted[highlighted.length - 1];
+            const lastCell = lastRow.querySelector('.d2h-code-linenumber, .d2h-code-side-linenumber');
+            const endInfo = lastCell ? this.#resolveLineInfo(lastCell, lastRow) : { line: startLine };
+            const endLine = endInfo.line || startLine;
+            const rangeStartLine = Math.min(startLine, endLine);
+            const rangeEndLine = Math.max(startLine, endLine);
+            if (rangeStartLine === rangeEndLine) {
+                // Single line — just show the "+" trigger, don't auto-open form
+                this.#clearRangeHighlight();
+                this.#rangeStart = { startCell, startLine, side, filePath };
+                startCell.closest('tr')?.classList.add('vr-range-selected');
+            } else {
+                this.#openCommentForm(lastCell || startCell, { startLine: rangeStartLine, endLine: rangeEndLine });
+            }
+        };
+        document.addEventListener('mouseup', onMouseUp);
+    }
+
+    #handleDragOver(cell) {
+        if (!this.#rangeStart) return;
+        const { filePath, side, startLine } = this.#rangeStart;
+        const info = this.#resolveLineInfo(cell, cell.closest('tr'));
+        if (info.filePath !== filePath || info.side !== side || !info.line) return;
+        const start = Math.min(startLine, info.line);
+        const end = Math.max(startLine, info.line);
+        this.#highlightRange(filePath, start, end, side);
     }
 
     #handleLineClick(cell, isShift) {
