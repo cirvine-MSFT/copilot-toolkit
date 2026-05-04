@@ -7,14 +7,13 @@ import { getDiffOutput, formatError, nowIso } from "./common.mjs";
 const extensionDir = import.meta.dirname;
 let currentConfig = { scope: "branch", base: "main", theme: "dark" };
 let commentStore = null;
+let currentSessionId = null;
 let visualizations = [];
 
-function initCommentStore() {
-    if (!commentStore) {
-        // Deterministic ID based on cwd so threads persist across extension reloads
-        const cwdHash = Buffer.from(process.cwd()).toString("base64url").slice(0, 12);
-        const storeId = `vr-${cwdHash}`;
-        commentStore = new CommentStore(storeId);
+function initCommentStore(sessionId) {
+    if (sessionId) currentSessionId = sessionId;
+    if (!commentStore && currentSessionId) {
+        commentStore = new CommentStore(currentSessionId);
         commentStore.load();
     }
     return commentStore;
@@ -244,6 +243,9 @@ const session = await joinSession({
         },
     }],
     hooks: {
+        onSessionStart: (_input, invocation) => {
+            initCommentStore(invocation.sessionId);
+        },
         onSessionEnd: webview.close,
     },
 });
