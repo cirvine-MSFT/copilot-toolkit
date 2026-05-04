@@ -87,7 +87,6 @@ setInterval(async () => {
         if (isConnected) setDisconnected();
     }
 }, 5000);
-}
 
 // ── Initialize: load config, diff, comments, and viz ──────────
 async function init() {
