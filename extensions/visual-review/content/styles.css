@@ -728,6 +728,9 @@ del.d2h-change {
     background: var(--color-comment-form-bg) !important;
     border-top: 1px solid var(--color-border-default);
     border-bottom: 1px solid var(--color-border-default);
+    /* Break out of table width: the td collapses to 0 width but overflows visibly */
+    width: 0 !important;
+    max-width: 0 !important;
     overflow: visible;
 }
 
@@ -735,11 +738,8 @@ del.d2h-change {
     display: flex;
     gap: 12px;
     padding: 12px 16px;
-    width: calc(100vw - var(--sidebar-width, 260px) - 64px);
-    max-width: 800px;
+    width: min(800px, calc(100vw - var(--sidebar-width, 260px) - 80px));
     box-sizing: border-box;
-    position: sticky;
-    left: 0;
 }
 
 .vr-comment-avatar {
@@ -828,6 +828,8 @@ del.d2h-change {
     background: var(--color-bg-default) !important;
     border-top: 1px solid var(--color-border-default);
     border-bottom: 1px solid var(--color-border-default);
+    width: 0 !important;
+    max-width: 0 !important;
     overflow: visible;
 }
 
@@ -840,11 +842,8 @@ del.d2h-change {
     display: flex;
     flex-direction: column;
     gap: 0;
-    width: calc(100vw - var(--sidebar-width, 260px) - 64px);
-    max-width: 800px;
+    width: min(800px, calc(100vw - var(--sidebar-width, 260px) - 80px));
     box-sizing: border-box;
-    position: sticky;
-    left: 0;
 }
 
 .vr-comment {
