@@ -735,35 +735,20 @@ del.d2h-change {
 }
 
 .vr-comment-form {
-    display: flex;
-    gap: 12px;
-    padding: 12px 16px;
-    width: min(800px, calc(100vw - var(--sidebar-width, 260px) - 80px));
-    box-sizing: border-box;
-    position: sticky;
-    left: 0;
+    padding: 8px 16px;
 }
 
-.vr-comment-avatar {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: var(--color-bg-muted);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    color: var(--color-fg-muted);
-}
-
-.vr-comment-input { flex: 1; min-width: 0; }
+.vr-comment-input { min-width: 0; }
 
 .vr-comment-tab-nav {
     display: flex;
+    align-items: center;
     gap: 0;
     border-bottom: 1px solid var(--color-border-default);
     margin-bottom: 8px;
 }
+
+.vr-comment-tab-spacer { flex: 1; }
 
 .vr-comment-tab {
     padding: 6px 12px;
@@ -810,12 +795,20 @@ del.d2h-change {
     border-radius: 6px;
 }
 
-.vr-comment-actions {
+/* Batch toggle in tab nav */
+.vr-comment-tab-nav .vr-batch-toggle {
+    font-size: 11px;
+    color: var(--color-fg-muted);
+    margin-right: 8px;
     display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 8px;
-    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+.vr-comment-tab-nav .vr-btn-sm {
+    padding: 3px 10px;
+    font-size: 12px;
+    margin-left: 4px;
 }
 
 .vr-comment-thread-row,

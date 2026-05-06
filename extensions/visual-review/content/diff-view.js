@@ -349,30 +349,21 @@ export class DiffView {
         formRow.innerHTML = `
             <td colspan="${colspan}">
                 <div class="vr-comment-form">
-                    <div class="vr-comment-avatar">
-                        <svg viewBox="0 0 16 16" width="20" height="20" fill="currentColor">
-                            <path d="M10.561 8.073a6.005 6.005 0 0 1 3.432 5.142.75.75 0 1
-                                     1-1.498.07 4.5 4.5 0 0 0-8.99 0 .75.75 0 0 1-1.498-.07
-                                     6.004 6.004 0 0 1 3.431-5.142 3.999 3.999 0 1 1
-                                     5.123 0ZM10.5 5a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Z"/>
-                        </svg>
-                    </div>
                     <div class="vr-comment-input">
                         <div class="vr-comment-tab-nav">
                             <button class="vr-comment-tab active" data-write>Write</button>
                             <button class="vr-comment-tab" data-preview>Preview</button>
                             <span class="vr-comment-line-label">${lineLabel}</span>
+                            <span class="vr-comment-tab-spacer"></span>
+                            <label class="vr-batch-toggle">
+                                <input type="checkbox" class="vr-batch-checkbox" ${this.#batchMode ? 'checked' : ''}>
+                                <span>Batch</span>
+                            </label>
+                            <button class="vr-btn vr-btn-sm vr-btn-cancel">Cancel</button>
+                            <button class="vr-btn vr-btn-sm vr-btn-primary">${this.#batchMode ? 'Add to pending' : 'Comment'}</button>
                         </div>
                         <textarea class="vr-comment-textarea" placeholder="Leave a comment (Ctrl+Enter to submit)" rows="3"></textarea>
                         <div class="vr-comment-preview hidden"></div>
-                        <div class="vr-comment-actions">
-                            <label class="vr-batch-toggle">
-                                <input type="checkbox" class="vr-batch-checkbox" ${this.#batchMode ? 'checked' : ''}>
-                                <span>Queue for batch</span>
-                            </label>
-                            <button class="vr-btn vr-btn-cancel">Cancel</button>
-                            <button class="vr-btn vr-btn-primary">${this.#batchMode ? 'Add to pending' : 'Comment'}</button>
-                        </div>
                     </div>
                 </div>
             </td>`;
