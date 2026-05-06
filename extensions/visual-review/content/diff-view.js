@@ -375,10 +375,23 @@ export class DiffView {
             </div>`;
 
         // Position the form at the marker row's location within the panel
+        // In side-by-side mode, align to the side where the comment was started
         const positionForm = () => {
             const markerRect = markerRow.getBoundingClientRect();
             const panelRect = panel.getBoundingClientRect();
             formEl.style.top = `${markerRect.top - panelRect.top + panel.scrollTop}px`;
+
+            if (this.#outputFormat === 'side-by-side') {
+                const panelWidth = panelRect.width;
+                formEl.style.width = `${Math.floor(panelWidth / 2) - 16}px`;
+                if (side === 'right') {
+                    formEl.style.left = 'auto';
+                    formEl.style.right = '16px';
+                } else {
+                    formEl.style.left = '16px';
+                    formEl.style.right = 'auto';
+                }
+            }
         };
 
         panel.style.position = 'relative';
