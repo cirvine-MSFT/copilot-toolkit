@@ -343,54 +343,54 @@ export class DiffView {
         const endLine = range?.endLine ?? line;
         const lineLabel = startLine === endLine ? `L${startLine}` : `L${startLine}-L${endLine}`;
 
-        const colspan = this.#getColspan();
-        const formRow = document.createElement('tr');
-        formRow.className = 'vr-comment-form-row';
-        formRow.innerHTML = `
-            <td colspan="${colspan}">
-                <div class="vr-comment-form">
-                    <div class="vr-comment-input">
-                        <div class="vr-comment-tab-nav">
-                            <button class="vr-comment-tab active" data-write>Write</button>
-                            <button class="vr-comment-tab" data-preview>Preview</button>
-                            <span class="vr-comment-line-label">${lineLabel}</span>
-                            <span class="vr-comment-tab-spacer"></span>
-                            <label class="vr-batch-toggle">
-                                <input type="checkbox" class="vr-batch-checkbox" ${this.#batchMode ? 'checked' : ''}>
-                                <span>Batch</span>
-                            </label>
-                            <button class="vr-btn vr-btn-sm vr-btn-cancel">Cancel</button>
-                            <button class="vr-btn vr-btn-sm vr-btn-primary">${this.#batchMode ? 'Add to pending' : 'Comment'}</button>
-                        </div>
-                        <textarea class="vr-comment-textarea" placeholder="Leave a comment (Ctrl+Enter to submit)" rows="3"></textarea>
-                        <div class="vr-comment-preview hidden"></div>
+        // Render the form as a div OUTSIDE the diff table to avoid table width issues
+        const fileWrapper = tr.closest('.d2h-file-wrapper');
+        const formEl = document.createElement('div');
+        formEl.className = 'vr-comment-form-overlay';
+        formEl.innerHTML = `
+            <div class="vr-comment-form">
+                <div class="vr-comment-input">
+                    <div class="vr-comment-tab-nav">
+                        <button class="vr-comment-tab active" data-write>Write</button>
+                        <button class="vr-comment-tab" data-preview>Preview</button>
+                        <span class="vr-comment-line-label">${lineLabel}</span>
+                        <span class="vr-comment-tab-spacer"></span>
+                        <label class="vr-batch-toggle">
+                            <input type="checkbox" class="vr-batch-checkbox" ${this.#batchMode ? 'checked' : ''}>
+                            <span>Batch</span>
+                        </label>
+                        <button class="vr-btn vr-btn-sm vr-btn-cancel">Cancel</button>
+                        <button class="vr-btn vr-btn-sm vr-btn-primary">${this.#batchMode ? 'Add to pending' : 'Comment'}</button>
                     </div>
+                    <textarea class="vr-comment-textarea" placeholder="Leave a comment (Ctrl+Enter to submit)" rows="3"></textarea>
+                    <div class="vr-comment-preview hidden"></div>
                 </div>
-            </td>`;
+            </div>`;
 
-        tr.after(formRow);
-        this.#openForm = formRow;
+        // Insert after the file wrapper, not inside the table
+        fileWrapper.after(formEl);
+        this.#openForm = formEl;
 
-        const textarea = formRow.querySelector('.vr-comment-textarea');
+        const textarea = formEl.querySelector('.vr-comment-textarea');
         textarea.focus();
 
         // Batch toggle
-        const batchCheckbox = formRow.querySelector('.vr-batch-checkbox');
-        const submitBtn = formRow.querySelector('.vr-btn-primary');
+        const batchCheckbox = formEl.querySelector('.vr-batch-checkbox');
+        const submitBtn = formEl.querySelector('.vr-btn-primary');
         batchCheckbox.addEventListener('change', () => {
             this.#batchMode = batchCheckbox.checked;
             submitBtn.textContent = this.#batchMode ? 'Add to pending' : 'Comment';
         });
 
         // Tab switching (Write / Preview)
-        const tabNav = formRow.querySelector('.vr-comment-tab-nav');
+        const tabNav = formEl.querySelector('.vr-comment-tab-nav');
         tabNav.addEventListener('click', (e) => {
             const tab = e.target.closest('.vr-comment-tab');
             if (!tab) return;
             tabNav.querySelectorAll('.vr-comment-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
             const isPreview = tab.hasAttribute('data-preview');
-            const preview = formRow.querySelector('.vr-comment-preview');
+            const preview = formEl.querySelector('.vr-comment-preview');
             if (isPreview) {
                 textarea.classList.add('hidden');
                 preview.classList.remove('hidden');
@@ -402,7 +402,7 @@ export class DiffView {
         });
 
         // Cancel
-        formRow.querySelector('.vr-btn-cancel').addEventListener('click', () => {
+        formEl.querySelector('.vr-btn-cancel').addEventListener('click', () => {
             this.#clearRangeHighlight();
             this.#rangeStart = null;
             this.#closeCommentForm();
