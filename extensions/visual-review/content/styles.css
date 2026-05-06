@@ -585,10 +585,13 @@ body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; -
     padding: 0 8px !important;
     text-align: right !important;
     width: 1% !important;
-    min-width: 40px !important;
+    min-width: 50px !important;
+    white-space: pre !important;
     user-select: none;
     cursor: pointer;
     vertical-align: top !important;
+    /* Override diff2html's absolute positioning — keep in normal table flow */
+    position: static !important;
 }
 
 /* Line number cells — side-by-side mode (colors only, let diff2html handle layout) */
