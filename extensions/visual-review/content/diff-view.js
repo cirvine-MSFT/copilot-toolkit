@@ -236,7 +236,11 @@ export class DiffView {
                 this.#closeCommentForm();
                 this.#clearRangeHighlight();
                 this.#dragging = true;
-                this.#rangeStart = { startCell: cell, startLine: line, side, filePath };
+                // Detect side via DOM parent for reliable split-view detection
+                const fileWrapper = cell.closest('.d2h-file-wrapper');
+                const sideDiffs = fileWrapper ? fileWrapper.querySelectorAll('.d2h-file-side-diff') : [];
+                const detectedSide = (sideDiffs.length >= 2 && cell.closest('.d2h-file-side-diff') === sideDiffs[1]) ? 'right' : 'left';
+                this.#rangeStart = { startCell: cell, startLine: line, side: detectedSide, filePath };
                 cell.closest('tr')?.classList.add('vr-range-selected');
             });
         }
@@ -342,6 +346,8 @@ export class DiffView {
         const startLine = range?.startLine ?? line;
         const endLine = range?.endLine ?? line;
         const lineLabel = startLine === endLine ? `L${startLine}` : `L${startLine}-L${endLine}`;
+        // Use the side from rangeStart (detected via DOM parent) if available
+        const formSide = this.#rangeStart?.side ?? side;
 
         // Insert a thin marker row in the table for positioning
         const colspan = this.#getColspan();
@@ -382,15 +388,9 @@ export class DiffView {
             formEl.style.top = `${markerRect.top - panelRect.top + panel.scrollTop}px`;
 
             if (this.#outputFormat === 'side-by-side') {
-                // Detect which side by checking if the cell is in the second side-diff container
-                const fileWrapper = lineNumCell.closest('.d2h-file-wrapper');
-                const sideDiffs = fileWrapper ? fileWrapper.querySelectorAll('.d2h-file-side-diff') : [];
-                const cellSideDiff = lineNumCell.closest('.d2h-file-side-diff');
-                const isRightSide = sideDiffs.length >= 2 && cellSideDiff === sideDiffs[1];
-
                 const halfWidth = Math.floor(panelRect.width / 2);
                 formEl.style.width = `${halfWidth - 32}px`;
-                if (isRightSide) {
+                if (formSide === 'right') {
                     formEl.style.left = `${halfWidth}px`;
                     formEl.style.right = '16px';
                 } else {
