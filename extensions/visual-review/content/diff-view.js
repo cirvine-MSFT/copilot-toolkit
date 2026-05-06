@@ -382,10 +382,15 @@ export class DiffView {
             formEl.style.top = `${markerRect.top - panelRect.top + panel.scrollTop}px`;
 
             if (this.#outputFormat === 'side-by-side') {
-                const panelWidth = panelRect.width;
-                formEl.style.width = `${Math.floor(panelWidth / 2) - 16}px`;
-                if (side === 'right') {
-                    formEl.style.left = 'auto';
+                // Detect which side by checking where the clicked cell actually is
+                const cellRect = lineNumCell.getBoundingClientRect();
+                const panelMidpoint = panelRect.left + panelRect.width / 2;
+                const isRightSide = cellRect.left >= panelMidpoint;
+                const halfWidth = Math.floor(panelRect.width / 2);
+
+                formEl.style.width = `${halfWidth - 32}px`;
+                if (isRightSide) {
+                    formEl.style.left = `${halfWidth}px`;
                     formEl.style.right = '16px';
                 } else {
                     formEl.style.left = '16px';
