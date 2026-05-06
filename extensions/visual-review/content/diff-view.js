@@ -343,10 +343,17 @@ export class DiffView {
         const endLine = range?.endLine ?? line;
         const lineLabel = startLine === endLine ? `L${startLine}` : `L${startLine}-L${endLine}`;
 
-        // Render the form as a div OUTSIDE the diff table to avoid table width issues
-        const fileWrapper = tr.closest('.d2h-file-wrapper');
+        // Insert a thin marker row in the table for positioning
+        const colspan = this.#getColspan();
+        const markerRow = document.createElement('tr');
+        markerRow.className = 'vr-comment-marker-row';
+        markerRow.innerHTML = `<td colspan="${colspan}"></td>`;
+        tr.after(markerRow);
+
+        // Create the form as a div appended to the panel (not the table)
+        const panel = this.#container.closest('.vr-panel') ?? this.#container.parentElement;
         const formEl = document.createElement('div');
-        formEl.className = 'vr-comment-form-overlay';
+        formEl.className = 'vr-comment-form-float';
         formEl.innerHTML = `
             <div class="vr-comment-form">
                 <div class="vr-comment-input">
@@ -367,9 +374,19 @@ export class DiffView {
                 </div>
             </div>`;
 
-        // Insert after the file wrapper, not inside the table
-        fileWrapper.after(formEl);
-        this.#openForm = formEl;
+        // Position the form at the marker row's location within the panel
+        const positionForm = () => {
+            const markerRect = markerRow.getBoundingClientRect();
+            const panelRect = panel.getBoundingClientRect();
+            formEl.style.top = `${markerRect.top - panelRect.top + panel.scrollTop}px`;
+        };
+
+        panel.style.position = 'relative';
+        panel.appendChild(formEl);
+        positionForm();
+
+        // Track both elements for cleanup
+        this.#openForm = { remove: () => { markerRow.remove(); formEl.remove(); } };
 
         const textarea = formEl.querySelector('.vr-comment-textarea');
         textarea.focus();

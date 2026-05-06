@@ -721,13 +721,25 @@ del.d2h-change {
     background-color: rgba(31, 111, 235, 0.04) !important;
 }
 
-/* ── Comment form (overlay, outside the diff table) ──────────── */
+/* ── Comment form (floated in panel, positioned at marker row) ── */
 
-.vr-comment-form-overlay {
+.vr-comment-marker-row td {
+    padding: 0 !important;
+    height: 0 !important;
+    border: none !important;
+    background: transparent !important;
+}
+
+.vr-comment-form-float {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    background: var(--color-comment-form-bg);
     border: 1px solid var(--color-border-default);
     border-radius: 6px;
-    margin-bottom: 16px;
-    background: var(--color-comment-form-bg);
+    margin: 0 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 .vr-comment-form {
