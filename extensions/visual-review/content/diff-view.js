@@ -107,9 +107,9 @@ export class DiffView {
         if (!this.#views[format]) {
             this.#renderView(format);
         }
-        // Toggle visibility
+        // Toggle visibility — use class instead of display:none to preserve layout
         for (const [fmt, el] of Object.entries(this.#views)) {
-            el.style.display = fmt === format ? '' : 'none';
+            el.classList.toggle('vr-diff-hidden', fmt !== format);
         }
         // Re-attach comment triggers and threads on the now-visible view
         this.#attachCommentTriggers();
@@ -226,7 +226,7 @@ export class DiffView {
         setTimeout(() => {
             if (!this.#views[otherFormat] && this.#rawDiff) {
                 const el = this.#renderView(otherFormat);
-                if (el) el.style.display = 'none';
+                if (el) el.classList.add('vr-diff-hidden');
             }
         }, 500);
 

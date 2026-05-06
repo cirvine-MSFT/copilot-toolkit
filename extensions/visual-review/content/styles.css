@@ -1019,6 +1019,16 @@ del.d2h-change {
 
 #diffContainer { max-width: 100%; overflow-x: auto; }
 
+/* Hidden diff view — height:0 + overflow:hidden hides visually but
+   the element was laid out at full size during initial render so
+   diff2html's absolute-positioned line numbers have correct coords. */
+.vr-diff-hidden {
+    height: 0 !important;
+    overflow: hidden !important;
+    visibility: hidden;
+    pointer-events: none;
+}
+
 /* ── Multi-line range selection highlight ─────────────────────── */
 
 .vr-range-selected td {
