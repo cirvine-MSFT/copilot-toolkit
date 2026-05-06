@@ -299,12 +299,27 @@ export class DiffView {
 
     #highlightRange(filePath, startLine, endLine, side) {
         this.#clearRangeHighlight();
-        const cells = this.#container.querySelectorAll('.d2h-code-linenumber, .d2h-code-side-linenumber');
-        for (const cell of cells) {
-            const info = this.#resolveLineInfo(cell, cell.closest('tr'));
-            if (info.filePath === filePath && info.side === side && info.line >= startLine && info.line <= endLine) {
-                cell.closest('tr')?.classList.add('vr-range-selected');
+        // Scope to the correct side-diff container in split view
+        const fileWrappers = this.#container.querySelectorAll('.d2h-file-wrapper');
+        for (const fw of fileWrappers) {
+            const nameEl = fw.querySelector('.d2h-file-name');
+            if (!nameEl || !nameEl.textContent.includes(filePath)) continue;
+            const sideDiffs = fw.querySelectorAll('.d2h-file-side-diff');
+            let scope;
+            if (sideDiffs.length >= 2) {
+                scope = side === 'right' ? sideDiffs[1] : sideDiffs[0];
+            } else {
+                scope = fw;
             }
+            const cells = scope.querySelectorAll('.d2h-code-linenumber, .d2h-code-side-linenumber');
+            for (const cell of cells) {
+                const lineText = cell.textContent.trim();
+                const lineNum = parseInt(lineText, 10);
+                if (lineNum >= startLine && lineNum <= endLine) {
+                    cell.closest('tr')?.classList.add('vr-range-selected');
+                }
+            }
+            break;
         }
     }
 
@@ -663,8 +678,15 @@ export class DiffView {
         const line = parseInt(lineText, 10) || 0;
 
         // Determine side from cell position (left vs right in side-by-side)
-        const cells = Array.from(tr.querySelectorAll('.d2h-code-linenumber, .d2h-code-side-linenumber'));
-        const side = cells.indexOf(lineNumCell) === 0 ? 'left' : 'right';
+        const fileWrapper = lineNumCell.closest('.d2h-file-wrapper');
+        const sideDiffs = fileWrapper ? fileWrapper.querySelectorAll('.d2h-file-side-diff') : [];
+        let side;
+        if (sideDiffs.length >= 2) {
+            side = lineNumCell.closest('.d2h-file-side-diff') === sideDiffs[1] ? 'right' : 'left';
+        } else {
+            const cells = Array.from(tr.querySelectorAll('.d2h-code-linenumber, .d2h-code-side-linenumber'));
+            side = cells.indexOf(lineNumCell) === 0 ? 'left' : 'right';
+        }
 
         return { filePath, line, side };
     }
