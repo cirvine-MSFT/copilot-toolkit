@@ -25,6 +25,8 @@ export class DiffView {
     #batchMode = false;
     /** Whether the sidebar shows tree view (true) or flat list (false) */
     #treeMode = false;
+    /** Pre-rendered containers: { 'side-by-side': HTMLElement, 'line-by-line': HTMLElement } */
+    #views = {};
 
     /**
      * @param {HTMLElement} container — the #diffContainer element
@@ -34,6 +36,11 @@ export class DiffView {
         this.#container = container;
         this.#transport = transport;
         this.#treeMode = localStorage.getItem('vr-tree-mode') === 'true';
+    }
+
+    /** Get the currently active (visible) diff view element */
+    get #activeView() {
+        return this.#views[this.#outputFormat] ?? this.#container;
     }
 
     // ── Public API ────────────────────────────────────────────────
@@ -82,7 +89,7 @@ export class DiffView {
         if (!thread) return;
         thread.comments.push({ author: 'Copilot', body: text, timestamp: 'just now' });
         // Re-render that specific thread row
-        const row = this.#container.querySelector(`.vr-comment-thread-row[data-thread-id="${threadId}"]`);
+        const row = this.#activeView.querySelector(`.vr-comment-thread-row[data-thread-id="${threadId}"]`);
         if (row) {
             row.querySelector('.vr-comment-thread').innerHTML = this.#renderThreadContent(thread);
             this.#wireThreadReply(row, thread);
@@ -90,12 +97,23 @@ export class DiffView {
     }
 
     /**
-     * Switch between side-by-side and line-by-line.
+     * Switch between side-by-side and line-by-line — instant toggle via pre-rendered views.
      * @param {'side-by-side'|'line-by-line'} format
      */
     setOutputFormat(format) {
         this.#outputFormat = format;
-        if (this.#rawDiff) this.#draw();
+        if (!this.#rawDiff) return;
+        // If the target view isn't pre-rendered yet, render it now
+        if (!this.#views[format]) {
+            this.#renderView(format);
+        }
+        // Toggle visibility
+        for (const [fmt, el] of Object.entries(this.#views)) {
+            el.style.display = fmt === format ? '' : 'none';
+        }
+        // Re-attach comment triggers and threads on the now-visible view
+        this.#attachCommentTriggers();
+        this.#renderAllThreads();
     }
 
     /** Current output format. */
@@ -113,7 +131,7 @@ export class DiffView {
      * @returns {{ current: number, total: number }} position after navigation
      */
     navigateComment(direction) {
-        const rows = Array.from(this.#container.querySelectorAll('.vr-comment-thread-row'));
+        const rows = Array.from(this.#activeView.querySelectorAll('.vr-comment-thread-row'));
         if (rows.length === 0) return { current: 0, total: 0 };
 
         const panel = this.#container.closest('.vr-panel') ?? this.#container.parentElement;
@@ -167,24 +185,50 @@ export class DiffView {
 
     // ── Diff rendering ────────────────────────────────────────────
 
-    #draw() {
-        this.#container.innerHTML = '';
+    /** Render a single format into a sub-container */
+    #renderView(format) {
         const Diff2HtmlUI = window.Diff2HtmlUI ?? window.Diff2Html?.Diff2HtmlUI;
-        if (!Diff2HtmlUI) {
-            this.#container.innerHTML = '<p class="vr-error">diff2html not loaded</p>';
-            return;
-        }
+        if (!Diff2HtmlUI) return;
 
-        const ui = new Diff2HtmlUI(this.#container, this.#rawDiff, {
+        const el = document.createElement('div');
+        el.className = `vr-diff-view vr-diff-${format}`;
+        const ui = new Diff2HtmlUI(el, this.#rawDiff, {
             drawFileList: false,
             matching: 'lines',
-            outputFormat: this.#outputFormat,
+            outputFormat: format,
             highlight: true,
             renderNothingWhenEmpty: false,
             colorScheme: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light',
         });
         ui.draw();
         ui.highlightCode();
+
+        this.#views[format] = el;
+        this.#container.appendChild(el);
+        return el;
+    }
+
+    #draw() {
+        this.#container.innerHTML = '';
+        this.#views = {};
+
+        const Diff2HtmlUI = window.Diff2HtmlUI ?? window.Diff2Html?.Diff2HtmlUI;
+        if (!Diff2HtmlUI) {
+            this.#container.innerHTML = '<p class="vr-error">diff2html not loaded</p>';
+            return;
+        }
+
+        // Pre-render the active format first (visible immediately)
+        this.#renderView(this.#outputFormat);
+
+        // Pre-render the other format in the background after a short delay
+        const otherFormat = this.#outputFormat === 'side-by-side' ? 'line-by-line' : 'side-by-side';
+        setTimeout(() => {
+            if (!this.#views[otherFormat] && this.#rawDiff) {
+                const el = this.#renderView(otherFormat);
+                if (el) el.style.display = 'none';
+            }
+        }, 500);
 
         // Attach hover "+" buttons for comments
         this.#attachCommentTriggers();
@@ -194,7 +238,7 @@ export class DiffView {
     }
 
     #getColspan() {
-        const firstRow = this.#container.querySelector('.d2h-diff-tbody tr');
+        const firstRow = this.#activeView.querySelector('.d2h-diff-tbody tr');
         if (firstRow) {
             return firstRow.querySelectorAll('td').length;
         }
@@ -204,7 +248,7 @@ export class DiffView {
     // ── Comment trigger (the "+" button on hover) ─────────────────
 
     #attachCommentTriggers() {
-        const lineNumCells = this.#container.querySelectorAll('.d2h-code-linenumber, .d2h-code-side-linenumber');
+        const lineNumCells = this.#activeView.querySelectorAll('.d2h-code-linenumber, .d2h-code-side-linenumber');
         for (const cell of lineNumCells) {
             cell.classList.add('vr-line-gutter');
             cell.addEventListener('mouseenter', () => {
@@ -251,7 +295,7 @@ export class DiffView {
             this.#dragging = false;
             const { startCell, startLine, side, filePath } = this.#rangeStart;
             // Find the current end of the highlighted range
-            const highlighted = this.#container.querySelectorAll('.vr-range-selected');
+            const highlighted = this.#activeView.querySelectorAll('.vr-range-selected');
             if (highlighted.length === 0) return;
             const lastRow = highlighted[highlighted.length - 1];
             const lastCell = lastRow.querySelector('.d2h-code-linenumber, .d2h-code-side-linenumber');
@@ -300,7 +344,7 @@ export class DiffView {
     #highlightRange(filePath, startLine, endLine, side) {
         this.#clearRangeHighlight();
         // Scope to the correct side-diff container in split view
-        const fileWrappers = this.#container.querySelectorAll('.d2h-file-wrapper');
+        const fileWrappers = this.#activeView.querySelectorAll('.d2h-file-wrapper');
         for (const fw of fileWrappers) {
             const nameEl = fw.querySelector('.d2h-file-name');
             if (!nameEl || !nameEl.textContent.includes(filePath)) continue;
@@ -324,7 +368,7 @@ export class DiffView {
     }
 
     #clearRangeHighlight() {
-        this.#container.querySelectorAll('.vr-range-selected').forEach(el => el.classList.remove('vr-range-selected'));
+        this.#activeView.querySelectorAll('.vr-range-selected').forEach(el => el.classList.remove('vr-range-selected'));
     }
 
     #showTrigger(cell) {
@@ -548,7 +592,7 @@ export class DiffView {
 
     #insertThreadRow(thread, afterRow) {
         // Check if a thread row already exists for this thread
-        const existing = this.#container.querySelector(
+        const existing = this.#activeView.querySelector(
             `.vr-comment-thread-row[data-thread-id="${thread.id}"]`
         );
         if (existing) existing.remove();
@@ -628,7 +672,7 @@ export class DiffView {
 
     #renderAllThreads() {
         // Remove existing thread rows
-        this.#container.querySelectorAll('.vr-comment-thread-row').forEach(r => r.remove());
+        this.#activeView.querySelectorAll('.vr-comment-thread-row').forEach(r => r.remove());
 
         for (const thread of this.#threads.values()) {
             const anchorRow = this.#findAnchorRow(thread.filePath, thread.line, thread.side);
@@ -643,7 +687,7 @@ export class DiffView {
      */
     #findAnchorRow(filePath, line, side) {
         // Find the file wrapper that contains this file path
-        const fileHeaders = this.#container.querySelectorAll('.d2h-file-header');
+        const fileHeaders = this.#activeView.querySelectorAll('.d2h-file-header');
         let fileWrapper = null;
         for (const header of fileHeaders) {
             const nameEl = header.querySelector('.d2h-file-name');
@@ -870,7 +914,7 @@ export class DiffView {
     }
 
     #scrollToFile(filePath) {
-        const headers = this.#container.querySelectorAll('.d2h-file-header');
+        const headers = this.#activeView.querySelectorAll('.d2h-file-header');
         for (const header of headers) {
             const nameEl = header.querySelector('.d2h-file-name');
             if (nameEl && nameEl.textContent.includes(filePath)) {
