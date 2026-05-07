@@ -213,7 +213,6 @@ if (scopeSelect) {
 }
 
 // ── Sidebar toggle ────────────────────────────────────────────
-const sidebar = document.getElementById('sidebar');
 const sidebarToggle = document.getElementById('sidebarToggle');
 
 sidebarToggle.addEventListener('click', () => {
