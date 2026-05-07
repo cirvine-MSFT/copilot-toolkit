@@ -199,15 +199,20 @@ export class DiffView {
             drawFileList: false,
             matching: 'lines',
             outputFormat: format,
-            highlight: true,
+            highlight: false,
             renderNothingWhenEmpty: false,
             colorScheme: document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light',
         });
         ui.draw();
-        ui.highlightCode();
 
         this.#views[format] = el;
         this.#container.appendChild(el);
+
+        // Syntax highlight lazily after the view is visible — non-blocking
+        requestIdleCallback(() => {
+            try { ui.highlightCode(); } catch { /* ignore */ }
+        }, { timeout: 2000 });
+
         return el;
     }
 
