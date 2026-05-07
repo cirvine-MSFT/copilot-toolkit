@@ -155,14 +155,28 @@ async function init() {
 const diffPanel = document.getElementById('diffPanel');
 const vizPanelEl = document.getElementById('vizPanel');
 
+function showPanel(target) {
+    if (target === 'diff') {
+        diffPanel.style.display = '';
+        diffPanel.style.visibility = '';
+        diffPanel.style.height = '';
+        diffPanel.style.overflow = '';
+        vizPanelEl.style.display = 'none';
+    } else {
+        // Hide diff panel preserving layout state to avoid expensive re-layout on return
+        diffPanel.style.visibility = 'hidden';
+        diffPanel.style.height = '0';
+        diffPanel.style.overflow = 'hidden';
+        diffPanel.style.display = '';
+        vizPanelEl.style.display = '';
+    }
+}
+
 document.querySelectorAll('.vr-tab').forEach(tab => {
     tab.addEventListener('click', () => {
         document.querySelectorAll('.vr-tab').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
-
-        const target = tab.dataset.panel;
-        diffPanel.classList.toggle('hidden', target !== 'diff');
-        vizPanelEl.classList.toggle('hidden', target !== 'viz');
+        showPanel(tab.dataset.panel);
     });
 });
 
