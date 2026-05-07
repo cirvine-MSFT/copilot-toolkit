@@ -669,6 +669,11 @@ del.d2h-change {
     background: var(--color-diff-hunk-bg) !important;
 }
 
+/* Hunk header content needs same left clearance as code lines */
+.d2h-info:not(.d2h-code-linenumber):not(.d2h-code-side-linenumber) {
+    padding-left: 62px !important;
+}
+
 /* Empty cell in side-by-side */
 .d2h-emptyplaceholder {
     background: var(--color-diff-empty-bg) !important;
