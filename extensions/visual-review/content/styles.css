@@ -576,27 +576,30 @@ body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; -
 
 .d2h-diff-tbody tr { border: none !important; }
 
-/* Line number cells — unified mode (full layout control) */
+/* Line number cells — unified mode
+   diff2html uses position:absolute which takes cells out of flow.
+   We override to position:sticky so line numbers stay visible on
+   horizontal scroll while remaining in the table layout flow. */
 .d2h-code-linenumber {
     background: var(--color-bg-subtle) !important;
     color: var(--color-diff-line-num) !important;
     border-right: 1px solid var(--color-border-muted) !important;
     border-left: none !important;
-    padding: 0 4px !important;
+    padding: 0 8px !important;
     text-align: right !important;
-    width: 75px !important;
-    min-width: 75px !important;
+    min-width: 60px !important;
     user-select: none;
     cursor: pointer;
     vertical-align: top !important;
-    line-height: 20px !important;
-    font-size: 12px !important;
+    position: sticky !important;
+    left: 0 !important;
+    z-index: 2;
 }
 
-/* Push code content right to avoid overlapping the absolute-positioned line numbers */
+/* Code cells — unified mode */
 .d2h-code-line {
     color: var(--color-fg-default) !important;
-    padding: 0 12px 0 88px !important;
+    padding: 0 12px !important;
 }
 
 /* Line number cells — side-by-side mode (colors only, let diff2html handle layout) */
@@ -669,11 +672,6 @@ del.d2h-change {
 .d2h-code-linenumber.d2h-info,
 .d2h-code-side-linenumber.d2h-info {
     background: var(--color-diff-hunk-bg) !important;
-}
-
-/* Hunk header content needs same left clearance as code lines */
-.d2h-info:not(.d2h-code-linenumber):not(.d2h-code-side-linenumber) {
-    padding-left: 88px !important;
 }
 
 /* Empty cell in side-by-side */
