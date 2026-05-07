@@ -348,6 +348,7 @@ body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; -
 }
 
 .vr-sidebar.collapsed { width: 0; border-right: none; opacity: 0; pointer-events: none; }
+.vr-sidebar.vr-sidebar-viz-hidden { display: none; }
 
 .vr-sidebar-header {
     padding: 8px;

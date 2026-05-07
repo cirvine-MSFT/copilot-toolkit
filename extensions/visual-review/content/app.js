@@ -154,19 +154,16 @@ async function init() {
 // ── Tab switching ─────────────────────────────────────────────
 const diffPanel = document.getElementById('diffPanel');
 const vizPanelEl = document.getElementById('vizPanel');
+const sidebar = document.getElementById('sidebar');
 
 function showPanel(target) {
     if (target === 'diff') {
-        diffPanel.style.display = '';
-        diffPanel.style.visibility = '';
-        diffPanel.style.height = '';
-        diffPanel.style.overflow = '';
+        diffPanel.classList.remove('hidden');
+        sidebar.classList.remove('vr-sidebar-viz-hidden');
         vizPanelEl.classList.add('hidden');
     } else {
-        diffPanel.style.visibility = 'hidden';
-        diffPanel.style.height = '0';
-        diffPanel.style.overflow = 'hidden';
-        diffPanel.style.display = '';
+        diffPanel.classList.add('hidden');
+        sidebar.classList.add('vr-sidebar-viz-hidden');
         vizPanelEl.classList.remove('hidden');
     }
 }
@@ -186,8 +183,20 @@ const viewToggleLabel = document.getElementById('viewToggleLabel');
 viewToggle.addEventListener('click', () => {
     const current = diffView.outputFormat;
     const next = current === 'side-by-side' ? 'line-by-line' : 'side-by-side';
-    diffView.setOutputFormat(next);
     viewToggleLabel.textContent = next === 'side-by-side' ? 'Split' : 'Unified';
+
+    // If the view hasn't been rendered yet, show a loading indicator
+    // and defer the heavy render to the next frame so the UI updates first
+    if (!diffView.hasView(next)) {
+        showToast('Rendering view…');
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                diffView.setOutputFormat(next);
+            }, 50);
+        });
+    } else {
+        diffView.setOutputFormat(next);
+    }
 });
 
 // ── Scope toggle ──────────────────────────────────────────────

@@ -119,6 +119,9 @@ export class DiffView {
     /** Current output format. */
     get outputFormat() { return this.#outputFormat; }
 
+    /** Check if a specific view format has been rendered. */
+    hasView(format) { return !!this.#views[format]; }
+
     /** Whether tree view is active. */
     get treeMode() { return this.#treeMode; }
 
