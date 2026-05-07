@@ -584,14 +584,17 @@ body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; -
     border-left: none !important;
     padding: 0 8px !important;
     text-align: right !important;
-    width: 1% !important;
+    width: 50px !important;
     min-width: 50px !important;
-    white-space: pre !important;
     user-select: none;
     cursor: pointer;
     vertical-align: top !important;
-    /* Override diff2html's absolute positioning — keep in normal table flow */
-    position: static !important;
+}
+
+/* Push code content right to avoid overlapping the absolute-positioned line numbers */
+.d2h-code-line {
+    color: var(--color-fg-default) !important;
+    padding: 0 12px 0 62px !important;
 }
 
 /* Line number cells — side-by-side mode (colors only, let diff2html handle layout) */
@@ -605,12 +608,6 @@ body { overflow: hidden; height: 100vh; display: flex; flex-direction: column; -
 
 .d2h-code-linenumber::after,
 .d2h-code-side-linenumber::after { content: none !important; }
-
-/* Code cells — unified mode */
-.d2h-code-line {
-    color: var(--color-fg-default) !important;
-    padding: 0 12px !important;
-}
 
 /* Code cells — side-by-side mode (colors only) */
 .d2h-code-side-line {
