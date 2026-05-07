@@ -161,14 +161,13 @@ function showPanel(target) {
         diffPanel.style.visibility = '';
         diffPanel.style.height = '';
         diffPanel.style.overflow = '';
-        vizPanelEl.style.display = 'none';
+        vizPanelEl.classList.add('hidden');
     } else {
-        // Hide diff panel preserving layout state to avoid expensive re-layout on return
         diffPanel.style.visibility = 'hidden';
         diffPanel.style.height = '0';
         diffPanel.style.overflow = 'hidden';
         diffPanel.style.display = '';
-        vizPanelEl.style.display = '';
+        vizPanelEl.classList.remove('hidden');
     }
 }
 

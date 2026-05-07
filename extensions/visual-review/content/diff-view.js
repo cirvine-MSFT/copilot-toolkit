@@ -218,17 +218,8 @@ export class DiffView {
             return;
         }
 
-        // Pre-render the active format first (visible immediately)
+        // Render only the active format — the other is rendered lazily on first toggle
         this.#renderView(this.#outputFormat);
-
-        // Pre-render the other format in the background after a short delay
-        const otherFormat = this.#outputFormat === 'side-by-side' ? 'line-by-line' : 'side-by-side';
-        setTimeout(() => {
-            if (!this.#views[otherFormat] && this.#rawDiff) {
-                const el = this.#renderView(otherFormat);
-                if (el) el.classList.add('vr-diff-hidden');
-            }
-        }, 500);
 
         // Attach hover "+" buttons for comments
         this.#attachCommentTriggers();
