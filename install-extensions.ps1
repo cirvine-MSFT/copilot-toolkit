@@ -28,7 +28,28 @@ if (-not (Test-Path $sourceDir)) {
     exit 1
 }
 
-$allExtensions = @("ado-pr-watcher", "ado-build-watcher")
+function Copy-DirectoryContentWithoutNodeModules {
+    param(
+        [string]$Source,
+        [string]$Destination
+    )
+
+    Get-ChildItem $Source -Force | ForEach-Object {
+        if ($_.PSIsContainer -and $_.Name -eq "node_modules") {
+            return
+        }
+
+        $target = Join-Path $Destination $_.Name
+        if ($_.PSIsContainer) {
+            New-Item -ItemType Directory -Path $target -Force | Out-Null
+            Copy-DirectoryContentWithoutNodeModules -Source $_.FullName -Destination $target
+        } else {
+            Copy-Item $_.FullName -Destination $target -Force
+        }
+    }
+}
+
+$allExtensions = @("ado-pr-watcher", "ado-build-watcher", "excalidraw-workbench")
 if ($Only -and $Only.Count -gt 0) {
     $extensions = @($Only | Where-Object { $allExtensions -contains $_ })
     $invalid = @($Only | Where-Object { $allExtensions -notcontains $_ })
@@ -55,7 +76,7 @@ foreach ($ext in $extensions) {
     # Clean target first so stale files from previous versions are removed
     if (Test-Path $dst) { Remove-Item $dst -Recurse -Force }
     New-Item -ItemType Directory -Path $dst -Force | Out-Null
-    Get-ChildItem $src | Copy-Item -Destination $dst -Recurse -Force
+    Copy-DirectoryContentWithoutNodeModules -Source $src -Destination $dst
     $installed += [string]$ext
 }
 
@@ -68,7 +89,7 @@ foreach ($dir in $sharedDirs) {
     }
     if (Test-Path $dst) { Remove-Item $dst -Recurse -Force }
     New-Item -ItemType Directory -Path $dst -Force | Out-Null
-    Get-ChildItem $src | Copy-Item -Destination $dst -Recurse -Force
+    Copy-DirectoryContentWithoutNodeModules -Source $src -Destination $dst
     $installed += [string]$dir
 }
 
