@@ -32,7 +32,28 @@ Alternatively, use `copilot --plugin-dir .` to load the repo directly as a plugi
 - Extension code is ES modules (`.mjs`) — no build step, no bundled dependencies
 - Extensions use `@github/copilot-sdk` which is auto-provided by the CLI runtime — do **not** add it as a dependency
 - Shared utilities go in `extensions/lib/`
-- Use `process.execPath` (not `node` or `node.exe`) when spawning worker processes
+- Use `resolveNodeBinary()` from `extensions/lib/resolve-node.mjs` when spawning worker processes; `process.execPath` points at the Copilot CLI executable, not Node.
+- Canvas extensions may include a nested webview package when the browser UI requires dependencies. Keep those dependencies out of the extension host and commit generated `webview/dist/` assets when installers need to remain copy-only.
+
+### Excalidraw Workbench development
+
+The Excalidraw Workbench extension has host-side ESM modules plus a nested React/Vite webview.
+
+```bash
+# Host helper tests
+node --test extensions/excalidraw-workbench/common.test.mjs
+
+# Webview tests and build
+cd extensions/excalidraw-workbench/webview
+npm ci
+npm run test
+npm run build
+npm audit --audit-level=moderate
+```
+
+Use Node.js 20.19+ for webview work.
+
+Commit `extensions/excalidraw-workbench/webview/dist/` after rebuilding. The install scripts copy prebuilt assets and do not run npm.
 
 ## Validation
 
@@ -40,7 +61,13 @@ Before submitting a PR, verify:
 
 ```bash
 # Syntax check all extension files
-find extensions -name '*.mjs' -exec node --check {} \;
+find extensions -path '*/node_modules/*' -prune -o -name '*.mjs' -type f -exec node --check {} \;
+
+# Run host tests
+node --test extensions/excalidraw-workbench/common.test.mjs
+
+# Run webview tests/build when touching Excalidraw Workbench
+cd extensions/excalidraw-workbench/webview && npm ci && npm run check
 
 # Run install script and verify it works
 ./install-extensions.sh
@@ -48,6 +75,7 @@ find extensions -name '*.mjs' -exec node --check {} \;
 
 CI runs automatically on PRs and checks:
 - `.mjs` syntax validity
+- Excalidraw Workbench host tests and webview tests/build
 - `plugin.json` structure
 - Install script smoke tests (bash on Ubuntu, pwsh on Ubuntu, PowerShell on Windows)
 - Installer idempotence (stale files are removed on reinstall)

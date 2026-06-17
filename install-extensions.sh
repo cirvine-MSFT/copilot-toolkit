@@ -21,7 +21,7 @@ if [ ! -d "$SOURCE_DIR" ]; then
     exit 1
 fi
 
-ALL_EXTENSIONS=("ado-pr-watcher" "ado-build-watcher")
+ALL_EXTENSIONS=("ado-pr-watcher" "ado-build-watcher" "excalidraw-workbench")
 
 if [ $# -gt 0 ]; then
     EXTENSIONS=()
@@ -57,7 +57,7 @@ for ext in "${EXTENSIONS[@]}"; do
     # Clean target first so stale files from previous versions are removed
     if [ -d "$dst" ]; then rm -rf "$dst"; fi
     mkdir -p "$dst"
-    cp -R "$src/"* "$dst/"
+    tar -C "$src" --exclude='node_modules' --exclude='*/node_modules' --exclude='*/node_modules/*' -cf - . | tar -C "$dst" -xf -
     INSTALLED+=("$ext")
 done
 
@@ -70,7 +70,7 @@ for dir in "${SHARED_DIRS[@]}"; do
     fi
     if [ -d "$dst" ]; then rm -rf "$dst"; fi
     mkdir -p "$dst"
-    cp -R "$src/"* "$dst/"
+    tar -C "$src" --exclude='node_modules' --exclude='*/node_modules' --exclude='*/node_modules/*' -cf - . | tar -C "$dst" -xf -
     INSTALLED+=("$dir")
 done
 

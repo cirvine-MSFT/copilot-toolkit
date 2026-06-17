@@ -24,7 +24,7 @@ jobs:
         run: |
           echo "Checking .mjs syntax..."
           errors=0
-          for f in $(find extensions -name '*.mjs' -type f); do
+          for f in $(find extensions -path '*/node_modules/*' -prune -o -name '*.mjs' -type f -print); do
             if ! node --check "$f" 2>&1; then
               echo "::error file=$f::Syntax error in $f"
               errors=$((errors + 1))
@@ -50,6 +50,27 @@ jobs:
             console.log('plugin.json is valid:', plugin.name, plugin.version);
           "
 
+      - name: Test Excalidraw host helpers
+        run: node --test extensions/excalidraw-workbench/common.test.mjs
+
+      - name: Test and build Excalidraw webview
+        working-directory: extensions/excalidraw-workbench/webview
+        run: |
+          npm ci
+          npm run test
+          npm run license-check
+          npm run build
+          npm audit --audit-level=moderate
+
+      - name: Verify Excalidraw webview dist is current
+        run: |
+          if [ -n "$(git status --porcelain -- extensions/excalidraw-workbench/webview/dist)" ]; then
+            echo "::error::extensions/excalidraw-workbench/webview/dist is stale. Run npm run build in the webview package and commit the generated assets."
+            git --no-pager status --short -- extensions/excalidraw-workbench/webview/dist
+            git --no-pager diff --stat -- extensions/excalidraw-workbench/webview/dist
+            exit 1
+          fi
+
   test-install-bash:
     name: Install (bash)
     runs-on: ubuntu-latest
@@ -69,6 +90,11 @@ jobs:
           test -f "$COPILOT_HOME/extensions/ado-build-watcher/extension.mjs" || { echo "::error::ado-build-watcher/extension.mjs missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/ado-build-watcher/common.mjs" || { echo "::error::ado-build-watcher/common.mjs missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/ado-build-watcher/watcher-worker.mjs" || { echo "::error::ado-build-watcher/watcher-worker.mjs missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/excalidraw-workbench/extension.mjs" || { echo "::error::excalidraw-workbench/extension.mjs missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/excalidraw-workbench/common.mjs" || { echo "::error::excalidraw-workbench/common.mjs missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/excalidraw-workbench/server.mjs" || { echo "::error::excalidraw-workbench/server.mjs missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/excalidraw-workbench/webview/dist/index.html" || { echo "::error::excalidraw-workbench/webview/dist/index.html missing"; exit 1; }
+          test ! -d "$COPILOT_HOME/extensions/excalidraw-workbench/webview/node_modules" || { echo "::error::excalidraw-workbench/webview/node_modules should not be installed"; exit 1; }
           test -f "$COPILOT_HOME/extensions/lib/tab-indicator.mjs" || { echo "::error::lib/tab-indicator.mjs missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/lib/resolve-node.mjs" || { echo "::error::lib/resolve-node.mjs missing"; exit 1; }
           echo "All expected files present"
@@ -108,6 +134,10 @@ jobs:
             "ado-build-watcher/extension.mjs",
             "ado-build-watcher/common.mjs",
             "ado-build-watcher/watcher-worker.mjs",
+            "excalidraw-workbench/extension.mjs",
+            "excalidraw-workbench/common.mjs",
+            "excalidraw-workbench/server.mjs",
+            "excalidraw-workbench/webview/dist/index.html",
             "lib/tab-indicator.mjs",
             "lib/resolve-node.mjs"
           )
@@ -115,6 +145,10 @@ jobs:
           $missing = $expected | Where-Object { -not (Test-Path (Join-Path $extDir $_)) }
           if ($missing) {
             $missing | ForEach-Object { Write-Error "Missing: $_" }
+            exit 1
+          }
+          if (Test-Path (Join-Path $extDir "excalidraw-workbench/webview/node_modules")) {
+            Write-Error "excalidraw-workbench/webview/node_modules should not be installed"
             exit 1
           }
           Write-Host "All expected files present"
@@ -159,6 +193,10 @@ jobs:
             "ado-build-watcher\extension.mjs",
             "ado-build-watcher\common.mjs",
             "ado-build-watcher\watcher-worker.mjs",
+            "excalidraw-workbench\extension.mjs",
+            "excalidraw-workbench\common.mjs",
+            "excalidraw-workbench\server.mjs",
+            "excalidraw-workbench\webview\dist\index.html",
             "lib\tab-indicator.mjs",
             "lib\resolve-node.mjs"
           )
@@ -166,6 +204,10 @@ jobs:
           $missing = $expected | Where-Object { -not (Test-Path (Join-Path $extDir $_)) }
           if ($missing) {
             $missing | ForEach-Object { Write-Error "Missing: $_" }
+            exit 1
+          }
+          if (Test-Path (Join-Path $extDir "excalidraw-workbench\webview\node_modules")) {
+            Write-Error "excalidraw-workbench\webview\node_modules should not be installed"
             exit 1
           }
           Write-Host "All expected files present on Windows"

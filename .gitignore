@@ -19,3 +19,10 @@ Thumbs.db
 # Build output
 dist/
 out/
+
+# The Excalidraw canvas extension commits its prebuilt webview so installers can copy it without npm.
+!extensions/excalidraw-workbench/webview/dist/
+!extensions/excalidraw-workbench/webview/dist/**
+
+# Local extension artifacts
+.copilot/

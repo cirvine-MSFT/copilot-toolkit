@@ -10,8 +10,11 @@ Each extension is a directory under `extensions/` containing:
 - `extension.mjs` — entrypoint that exports tools via `@github/copilot-sdk`
 - `common.mjs` — shared helpers (Azure CLI invocation, URL parsing, file I/O)
 - Worker files (e.g., `worker.mjs`, `watcher-worker.mjs`) — detached background processes
+- Canvas webview assets when needed (e.g., `webview/dist/` for `excalidraw-workbench`)
 
 Extensions register tools that the Copilot agent can invoke. Each tool has a `name`, `description`, `parameters` (JSON Schema), and `handler` function.
+
+Canvas extensions register canvases using `createCanvas` from `@github/copilot-sdk/extension`. Keep the extension host dependency-light; browser-only dependencies belong in a nested webview package and must be prebuilt into committed assets if installers need to copy them.
 
 ## Key patterns
 
@@ -41,6 +44,14 @@ Watchers communicate with the extension host via JSON files in a temp directory.
 ### Tab indicator
 `extensions/lib/tab-indicator.mjs` provides terminal tab title manipulation to show watcher status. Both extensions use `markWatching()`, `unmarkWatching()`, and `resetWatching()`.
 
+### Webview-based canvas extensions
+`excalidraw-workbench` is the exception to the no-build-extension pattern:
+- the extension host (`extension.mjs`, `common.mjs`, `server.mjs`) is plain ESM and uses only Node built-ins plus `@github/copilot-sdk`;
+- browser dependencies live under `webview/`;
+- generated `webview/dist/` is committed so install scripts remain copy-only;
+- CI runs `npm ci`, tests, build, stale-dist detection, and `npm audit --audit-level=moderate`;
+- runtime assets must be served from loopback/local files, not CDNs.
+
 ## Adding a new extension
 
 1. Create `extensions/my-extension/extension.mjs`
@@ -52,7 +63,9 @@ Watchers communicate with the extension host via JSON files in a temp directory.
 
 ## Testing
 
-There are no unit tests for extension logic currently. Validation is:
+Validation is:
 - `node --check` for syntax
+- `node --test` for extension-specific host tests when present
+- webview package tests/builds for canvas extensions with browser assets
 - Manual testing in a live Copilot CLI session
-- CI smoke tests for install scripts only
+- CI smoke tests for install scripts
