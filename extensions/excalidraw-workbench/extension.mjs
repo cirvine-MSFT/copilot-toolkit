@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { basename } from "node:path";
 import { CanvasError, createCanvas, joinSession } from "@github/copilot-sdk/extension";
+import { sceneRevision } from "./scene-normalize.mjs";
 import {
     addReply,
     applyElementPatch,
@@ -22,7 +23,7 @@ import {
     saveSourceSchema,
     writeSnapshotArtifact,
 } from "./common.mjs";
-import { closeWorkbenchServer, refreshWorkbench, requestLiveSnapshot, sendEvent, startWorkbenchServer } from "./server.mjs";
+import { closeWorkbenchServer, enqueueSceneSave, refreshWorkbench, requestLiveSnapshot, sendEvent, startWorkbenchServer } from "./server.mjs";
 
 const servers = new Map();
 let copilotSession;
@@ -181,6 +182,7 @@ copilotSession = await joinSession({
                             displayPath: entry.displayPath,
                             title: entry.title,
                             activeComments: listActiveComments(entry.commentState).length,
+                            revision: sceneRevision(await loadDiagram(entry.filePath)),
                         };
                     },
                 },
@@ -253,9 +255,12 @@ copilotSession = await joinSession({
                     handler: async (ctx) => {
                         const entry = getLoadedEntry(ctx.instanceId);
                         try {
-                            const diagram = await loadDiagram(entry.filePath);
-                            const element = applyElementPatch(diagram, String(ctx.input?.elementId), ctx.input?.patch ?? {});
-                            await saveDiagram(entry.filePath, diagram);
+                            const element = await enqueueSceneSave(entry, async () => {
+                                const diagram = await loadDiagram(entry.filePath);
+                                const patchedElement = applyElementPatch(diagram, String(ctx.input?.elementId), ctx.input?.patch ?? {});
+                                await saveDiagram(entry.filePath, diagram);
+                                return patchedElement;
+                            });
                             refreshWorkbench(entry, "agent-patched-element");
                             return { saved: true, element };
                         } catch (error) {
@@ -265,13 +270,20 @@ copilotSession = await joinSession({
                 },
                 {
                     name: "save_source",
-                    description: "Replace the loaded Excalidraw scene JSON source.",
+                    description: "Replace the loaded Excalidraw scene JSON source when its base revision still matches the file on disk.",
                     inputSchema: saveSourceSchema,
                     handler: async (ctx) => {
                         const entry = getLoadedEntry(ctx.instanceId);
                         try {
                             const diagram = JSON.parse(String(ctx.input?.source ?? ""));
-                            await saveDiagram(entry.filePath, diagram);
+                            const baseRevision = String(ctx.input?.baseRevision ?? "");
+                            await enqueueSceneSave(entry, async () => {
+                                const current = await loadDiagram(entry.filePath);
+                                if (sceneRevision(current) !== baseRevision) {
+                                    throw new Error("The drawing changed on disk. Refresh before saving source again.");
+                                }
+                                await saveDiagram(entry.filePath, diagram);
+                            });
                             refreshWorkbench(entry, "agent-saved-source");
                             return { saved: true };
                         } catch (error) {

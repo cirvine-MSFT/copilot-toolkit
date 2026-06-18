@@ -5,9 +5,9 @@ import { fileURLToPath } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const sourceFonts = join(root, "node_modules", "@excalidraw", "excalidraw", "dist", "prod", "fonts");
-const targetFonts = join(root, "dist", "assets", "fonts");
+const targetFonts = join(root, "runtime", "assets", "fonts");
 const sourceAssets = join(root, "node_modules", "@excalidraw", "excalidraw", "dist", "excalidraw-assets");
-const targetAssets = join(root, "dist", "assets", "excalidraw-assets");
+const targetAssets = join(root, "runtime", "assets", "excalidraw-assets");
 
 if (existsSync(sourceFonts)) {
   await mkdir(targetFonts, { recursive: true });

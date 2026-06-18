@@ -10,7 +10,7 @@ Each extension is a directory under `extensions/` containing:
 - `extension.mjs` — entrypoint that exports tools via `@github/copilot-sdk`
 - `common.mjs` — shared helpers (Azure CLI invocation, URL parsing, file I/O)
 - Worker files (e.g., `worker.mjs`, `watcher-worker.mjs`) — detached background processes
-- Canvas webview assets when needed (e.g., `webview/dist/` for `excalidraw-workbench`)
+- Canvas webview assets when needed (e.g., `webview/runtime/` for `excalidraw-workbench`)
 
 Extensions register tools that the Copilot agent can invoke. Each tool has a `name`, `description`, `parameters` (JSON Schema), and `handler` function.
 
@@ -48,8 +48,8 @@ Watchers communicate with the extension host via JSON files in a temp directory.
 `excalidraw-workbench` is the exception to the no-build-extension pattern:
 - the extension host (`extension.mjs`, `common.mjs`, `server.mjs`) is plain ESM and uses only Node built-ins plus `@github/copilot-sdk`;
 - browser dependencies live under `webview/`;
-- generated `webview/dist/` is committed so install scripts remain copy-only;
-- CI runs `npm ci`, tests, build, stale-dist detection, and `npm audit --audit-level=moderate`;
+- generated `webview/runtime/` is committed so install scripts remain copy-only;
+- CI runs `npm ci`, tests, build, stale-runtime detection, and `npm audit --audit-level=moderate`;
 - runtime assets must be served from loopback/local files, not CDNs.
 
 ## Adding a new extension

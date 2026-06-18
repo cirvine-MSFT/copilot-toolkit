@@ -51,6 +51,48 @@ test("saveDiagram and loadDiagram preserve Excalidraw scene basics", async () =>
     });
 });
 
+test("saveDiagram coerces numeric-string element geometry", async () => {
+    await withTempDir(async (root) => {
+        const filePath = join(root, "drawing.excalidraw");
+        await saveDiagram(filePath, {
+            elements: [{
+                id: "arrow",
+                type: "arrow",
+                x: "10",
+                y: "20",
+                width: "120",
+                height: "-93",
+                points: [[0, 0], ["120", "-93"]],
+            }],
+        });
+
+        const loaded = await loadDiagram(filePath);
+        assert.equal(loaded.elements[0].x, 10);
+        assert.equal(loaded.elements[0].height, -93);
+        assert.deepEqual(loaded.elements[0].points[1], [120, -93]);
+    });
+});
+
+test("saveDiagram rejects invalid numeric element geometry", async () => {
+    await withTempDir(async (root) => {
+        const filePath = join(root, "drawing.excalidraw");
+        await assert.rejects(
+            () => saveDiagram(filePath, {
+                elements: [{
+                    id: "arrow-bad",
+                    type: "arrow",
+                    x: 10,
+                    y: 20,
+                    width: 120,
+                    height: "nope",
+                    points: [[0, 0], [120, -93]],
+                }],
+            }),
+            /arrow-bad.*height.*finite number/,
+        );
+    });
+});
+
 test("comment sidecar stores comments, replies, and resolution", async () => {
     await withTempDir(async (root) => {
         const filePath = join(root, "drawing.excalidraw");
@@ -86,6 +128,23 @@ test("renderSvg produces an inspectable SVG snapshot", async () => {
 
     assert.match(svg, /<svg /);
     assert.match(svg, /comment-marker/);
+});
+
+test("renderSvg keeps numeric-string arrow geometry finite", async () => {
+    const svg = renderSvg({
+        elements: [{
+            id: "arrow",
+            type: "arrow",
+            x: 10,
+            y: 20,
+            width: "120",
+            height: "-93",
+            points: [[0, 0], ["120", "-93"]],
+        }],
+    });
+
+    assert.doesNotMatch(svg, /NaN/);
+    assert.match(svg, /viewBox="[-0-9.]+ [-0-9.]+ [-0-9.]+ [-0-9.]+"/);
 });
 
 test("saveDiagram writes formatted JSON", async () => {

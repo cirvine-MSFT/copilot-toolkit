@@ -21,8 +21,8 @@ dist/
 out/
 
 # The Excalidraw canvas extension commits its prebuilt webview so installers can copy it without npm.
-!extensions/excalidraw-workbench/webview/dist/
-!extensions/excalidraw-workbench/webview/dist/**
+!extensions/excalidraw-workbench/webview/runtime/
+!extensions/excalidraw-workbench/webview/runtime/**
 
 # Local extension artifacts
 .copilot/

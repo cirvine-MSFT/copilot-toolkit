@@ -33,7 +33,7 @@ Alternatively, use `copilot --plugin-dir .` to load the repo directly as a plugi
 - Extensions use `@github/copilot-sdk` which is auto-provided by the CLI runtime — do **not** add it as a dependency
 - Shared utilities go in `extensions/lib/`
 - Use `resolveNodeBinary()` from `extensions/lib/resolve-node.mjs` when spawning worker processes; `process.execPath` points at the Copilot CLI executable, not Node.
-- Canvas extensions may include a nested webview package when the browser UI requires dependencies. Keep those dependencies out of the extension host and commit generated `webview/dist/` assets when installers need to remain copy-only.
+- Canvas extensions may include a nested webview package when the browser UI requires dependencies. Keep those dependencies out of the extension host and commit generated runtime webview assets when installers need to remain copy-only.
 
 ### Excalidraw Workbench development
 
@@ -41,19 +41,20 @@ The Excalidraw Workbench extension has host-side ESM modules plus a nested React
 
 ```bash
 # Host helper tests
-node --test extensions/excalidraw-workbench/common.test.mjs
+node --test extensions/excalidraw-workbench/*.test.mjs
 
 # Webview tests and build
 cd extensions/excalidraw-workbench/webview
 npm ci
 npm run test
 npm run build
+npm run secret-scan
 npm audit --audit-level=moderate
 ```
 
 Use Node.js 20.19+ for webview work.
 
-Commit `extensions/excalidraw-workbench/webview/dist/` after rebuilding. The install scripts copy prebuilt assets and do not run npm.
+Commit `extensions/excalidraw-workbench/webview/runtime/` after rebuilding. The install scripts copy prebuilt assets and do not run npm. Keep the committed bundle under `runtime/` instead of `dist/` or `build/` so generic source-folder installers do not treat it as disposable build output.
 
 ## Validation
 
@@ -64,7 +65,7 @@ Before submitting a PR, verify:
 find extensions -path '*/node_modules/*' -prune -o -name '*.mjs' -type f -exec node --check {} \;
 
 # Run host tests
-node --test extensions/excalidraw-workbench/common.test.mjs
+node --test extensions/excalidraw-workbench/*.test.mjs
 
 # Run webview tests/build when touching Excalidraw Workbench
 cd extensions/excalidraw-workbench/webview && npm ci && npm run check
