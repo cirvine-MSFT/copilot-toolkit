@@ -8,7 +8,7 @@ Personal collection of [GitHub Copilot CLI](https://docs.github.com/en/copilot/u
 |-----------|---------------|-------------|
 | **ado-pr-watcher** | `pr_watcher_start`, `pr_watcher_list`, `pr_watcher_stop` | Watches Azure DevOps pull requests for reviewer activity, comment threads, negative votes, and blocking policy failures. Injects follow-up prompts so the Copilot agent can act as the PR author. |
 | **ado-build-watcher** | `build_watcher_start`, `build_watcher_list`, `build_watcher_stop` | Watches Azure DevOps build/pipeline runs and notifies the session when they complete or fail, enabling automatic diagnosis and next-step continuation. |
-| **excalidraw-workbench** | Canvas: `excalidraw-workbench` | Opens repository `.excalidraw` drawings in a Copilot canvas with the full Excalidraw UI, durable comments/replies, agent actions, and local snapshot capture for visual review. |
+| **excalidraw-workbench** ([details](extensions/excalidraw-workbench/README.md)) | Canvas: `excalidraw-workbench` | Opens repository `.excalidraw` drawings in a Copilot canvas with the full Excalidraw UI, durable comments/replies, agent actions, and local snapshot capture for visual review. |
 
 ### Quick start
 
@@ -92,6 +92,15 @@ To install only specific extensions:
 ```
 
 After installing, run `/clear` in the Copilot CLI or restart it to load the new extensions.
+
+> **No Node.js or `npm` needed for end users.** Extensions are plain ES modules and the Excalidraw webview ships prebuilt under `webview/runtime/`. The install script copies everything in place.
+
+### Verify the install
+
+```bash
+ls ~/.copilot/extensions/                                                 # should list the extensions you installed
+ls ~/.copilot/extensions/excalidraw-workbench/webview/runtime/index.html  # excalidraw-workbench only
+```
 
 ### Update
 
