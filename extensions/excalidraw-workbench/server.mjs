@@ -1,8 +1,9 @@
 import { createServer } from "node:http";
 import { createReadStream } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { sceneRevision } from "./scene-normalize.mjs";
 import {
     addReply,
     applyElementPatch,
@@ -12,6 +13,7 @@ import {
     jsonResponse,
     listActiveComments,
     loadDiagram,
+    normalizeDiagram,
     readRequestJson,
     resolveComment,
     saveCommentState,
@@ -19,7 +21,7 @@ import {
 } from "./common.mjs";
 
 const extensionDir = dirname(fileURLToPath(import.meta.url));
-const webviewDistDir = join(extensionDir, "webview", "dist");
+const webviewRuntimeDir = join(extensionDir, "webview", "runtime");
 const snapshotTimeoutMs = 5000;
 
 const contentTypes = new Map([
@@ -37,6 +39,8 @@ const contentTypes = new Map([
 ]);
 
 export async function startWorkbenchServer(entry, handlers) {
+    await assertWebviewRuntimeAssets();
+
     entry.sseClients = new Set();
     entry.snapshotRequests = new Map();
 
@@ -101,8 +105,39 @@ export function sendEvent(entry, payload) {
     }
 }
 
-export function refreshWorkbench(entry, reason = "refresh") {
-    sendEvent(entry, { type: "refresh-scene", reason });
+export function refreshWorkbench(entry, reason = "refresh", fields = {}) {
+    sendEvent(entry, { type: "refresh-scene", reason, ...fields });
+}
+
+export async function enqueueSceneSave(entry, operation) {
+    const previous = entry.sceneSaveQueue ?? Promise.resolve();
+    const result = previous.catch(() => {}).then(operation);
+    const queued = result.catch(() => {});
+    entry.sceneSaveQueue = queued;
+
+    try {
+        return await result;
+    } finally {
+        if (entry.sceneSaveQueue === queued) {
+            entry.sceneSaveQueue = null;
+        }
+    }
+}
+
+export async function assertWebviewRuntimeAssets(runtimeDir = webviewRuntimeDir) {
+    const indexPath = join(runtimeDir, "index.html");
+    try {
+        await access(indexPath);
+    } catch (error) {
+        if (error?.code !== "ENOENT" && error?.code !== "ENOTDIR") {
+            throw error;
+        }
+
+        throw new Error([
+            `Excalidraw Workbench webview assets are missing: ${indexPath}`,
+            "Install with the copilot-toolkit install script, or run `npm ci && npm run build` in extensions/excalidraw-workbench/webview before reinstalling or reloading the extension.",
+        ].join(" "));
+    }
 }
 
 async function handleRequest(entry, handlers, req, res) {
@@ -161,6 +196,7 @@ async function handleApiRequest(entry, handlers, req, res, url) {
         const diagram = await loadDiagram(entry.filePath);
         jsonResponse(res, 200, {
             scene: diagram,
+            revision: sceneRevision(diagram),
             comments: entry.commentState.comments,
             title: entry.title,
             displayPath: entry.displayPath,
@@ -171,9 +207,30 @@ async function handleApiRequest(entry, handlers, req, res, url) {
     if (req.method === "POST" && url.pathname === "/api/scene") {
         const input = await readRequestJson(req);
         const scene = input.scene ?? input;
-        await saveDiagram(entry.filePath, scene);
-        refreshWorkbench(entry, "scene-saved");
-        jsonResponse(res, 200, { saved: true });
+        const result = await enqueueSceneSave(entry, async () => {
+            const baseRevision = typeof input.baseRevision === "string" ? input.baseRevision : null;
+            if (baseRevision) {
+                const current = await loadDiagram(entry.filePath);
+                if (sceneRevision(current) !== baseRevision) {
+                    return { conflict: true };
+                }
+            }
+
+            const diagram = normalizeDiagram(scene);
+            await saveDiagram(entry.filePath, diagram);
+            return { revision: sceneRevision(diagram) };
+        });
+
+        if (result.conflict) {
+            jsonResponse(res, 409, { error: "The drawing changed on disk. Refresh before saving again." });
+            return;
+        }
+
+        const clientId = typeof input.clientId === "string" && input.clientId.trim() !== ""
+            ? input.clientId.trim()
+            : null;
+        refreshWorkbench(entry, "scene-saved", clientId ? { clientId } : {});
+        jsonResponse(res, 200, { saved: true, revision: result.revision });
         return;
     }
 
@@ -222,9 +279,12 @@ async function handleApiRequest(entry, handlers, req, res, url) {
     const elementMatch = url.pathname.match(/^\/api\/elements\/([^/]+)$/);
     if (elementMatch && req.method === "POST") {
         const input = await readRequestJson(req);
-        const diagram = await loadDiagram(entry.filePath);
-        const element = applyElementPatch(diagram, decodeURIComponent(elementMatch[1]), input.patch ?? input);
-        await saveDiagram(entry.filePath, diagram);
+        const element = await enqueueSceneSave(entry, async () => {
+            const diagram = await loadDiagram(entry.filePath);
+            const patchedElement = applyElementPatch(diagram, decodeURIComponent(elementMatch[1]), input.patch ?? input);
+            await saveDiagram(entry.filePath, diagram);
+            return patchedElement;
+        });
         refreshWorkbench(entry, "element-patched");
         jsonResponse(res, 200, { saved: true, element });
         return;
@@ -315,7 +375,7 @@ async function serveStaticRequest(entry, req, res, url) {
 }
 
 async function renderIndexHtml(entry) {
-    const indexPath = join(webviewDistDir, "index.html");
+    const indexPath = join(webviewRuntimeDir, "index.html");
     let html = await readFile(indexPath, "utf8");
     const config = {
         title: entry.title,
@@ -330,8 +390,8 @@ async function renderIndexHtml(entry) {
 
 function resolveStaticPath(pathname) {
     const rawPath = decodeURIComponent(pathname).replace(/^\/+/, "");
-    const requestedPath = resolve(webviewDistDir, rawPath);
-    const relativePath = relative(webviewDistDir, requestedPath);
+    const requestedPath = resolve(webviewRuntimeDir, rawPath);
+    const relativePath = relative(webviewRuntimeDir, requestedPath);
     if (relativePath.startsWith("..") || isAbsolute(relativePath)) {
         return null;
     }

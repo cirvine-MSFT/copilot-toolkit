@@ -1,6 +1,7 @@
 import { constants } from "node:fs";
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, dirname, extname, isAbsolute, join, relative, resolve } from "node:path";
+import { normalizeImportedScene } from "./scene-normalize.mjs";
 
 export const canvasInputSchema = {
     type: "object",
@@ -63,8 +64,12 @@ export const saveSourceSchema = {
     type: "object",
     properties: {
         source: { type: "string" },
+        baseRevision: {
+            type: "string",
+            description: "Revision returned by get_loaded_file. Required to avoid overwriting newer drawing changes.",
+        },
     },
-    required: ["source"],
+    required: ["source", "baseRevision"],
     additionalProperties: false,
 };
 
@@ -167,11 +172,12 @@ export function normalizeDiagram(value) {
         throw new Error("Excalidraw scene must contain an elements array.");
     }
 
+    const normalized = normalizeImportedScene(value);
     return {
         type: value.type ?? "excalidraw",
         version: value.version ?? 2,
         source: value.source ?? "https://github.com/cirvine-msft/copilot-toolkit",
-        elements: value.elements,
+        elements: normalized.elements,
         appState: value.appState ?? {},
         files: value.files ?? {},
     };

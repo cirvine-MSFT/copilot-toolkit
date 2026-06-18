@@ -1,3 +1,7 @@
+import { normalizeImportedElement, normalizeImportedScene, sceneRevision } from "../../scene-normalize.mjs";
+
+export { normalizeImportedElement, normalizeImportedScene };
+
 export function scenePayload(scene, files = {}, options = {}) {
   const appState = normalizeAppState(scene?.appState, options);
   return {
@@ -8,6 +12,18 @@ export function scenePayload(scene, files = {}, options = {}) {
     appState,
     files: scene?.files ?? files ?? {},
   };
+}
+
+export function sceneFingerprint(scene) {
+  return sceneRevision(scenePayload(scene));
+}
+
+export function shouldPersistSceneChange({ hasUserInteracted, lastSceneFingerprint, scene }) {
+  if (!hasUserInteracted) {
+    return false;
+  }
+
+  return sceneFingerprint(scene) !== lastSceneFingerprint;
 }
 
 export function normalizeAppState(appState, options = {}) {

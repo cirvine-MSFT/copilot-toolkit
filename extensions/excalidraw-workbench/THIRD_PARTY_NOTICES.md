@@ -1,8 +1,16 @@
 # Third-party notices for Excalidraw Workbench
 
-The Excalidraw Workbench webview bundles open-source browser code into `webview/dist/` so install scripts can copy the extension without running npm on user machines.
+The Excalidraw Workbench webview bundles open-source browser code into `webview/runtime/` so install scripts can copy the extension without running npm on user machines. `webview/runtime/PROVENANCE.json` records the direct runtime dependency versions and the exact regeneration command.
 
-Runtime dependencies are tracked in `webview/package-lock.json`. At the time this notice was added, the bundled runtime tree is:
+Runtime dependencies are tracked in `webview/package-lock.json`. Recreate the committed runtime files with:
+
+```bash
+cd extensions/excalidraw-workbench/webview
+npm ci
+npm run build
+```
+
+The build also writes provenance, copies Excalidraw runtime assets, and scans the bundle for high-confidence secret patterns. At the time this notice was added, the bundled runtime tree is:
 
 | Package | License |
 | --- | --- |

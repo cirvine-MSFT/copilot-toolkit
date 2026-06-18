@@ -1,19 +1,22 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { Excalidraw, exportToBlob, exportToSvg } from "@excalidraw/excalidraw";
+import { Excalidraw, exportToBlob, exportToSvg, restore } from "@excalidraw/excalidraw";
 import {
   activeComments,
   commentAnchorFromSelection,
+  normalizeImportedScene,
   nextStatus,
   scenePayload,
+  sceneFingerprint,
   scenePointToViewport,
+  shouldPersistSceneChange,
 } from "./state.js";
 import "./styles.css";
 
 const config = window.EXCALIDRAW_WORKBENCH_CONFIG ?? {};
 window.EXCALIDRAW_ASSET_PATH = config.assetPath ?? "/assets/";
 
-async function api(path, options) {
+export async function api(path, options) {
   const headers = new Headers(options?.headers ?? {});
   headers.set("X-Excalidraw-Workbench-Token", config.apiToken);
   const response = await fetch(path, { ...options, headers });
@@ -25,10 +28,11 @@ async function api(path, options) {
   return payload;
 }
 
-function App() {
+export function App() {
   const [scene, setScene] = useState(null);
   const [comments, setComments] = useState([]);
   const [status, setStatus] = useState(nextStatus("Loading drawing..."));
+  const [loadError, setLoadError] = useState("");
   const [sourceText, setSourceText] = useState("");
   const [activeTab, setActiveTab] = useState("comments");
   const [selectedCommentId, setSelectedCommentId] = useState("");
@@ -38,19 +42,39 @@ function App() {
   const [markerAppState, setMarkerAppState] = useState(null);
   const [excalidrawAPI, setExcalidrawAPI] = useState(null);
   const saveTimer = useRef(null);
+  const sceneSaveQueue = useRef(Promise.resolve());
+  const queuedSceneSaves = useRef(0);
   const lastSceneJson = useRef("");
+  const lastSceneFingerprint = useRef("");
+  const hasDrawingInteraction = useRef(false);
+  const inFlightSceneSaves = useRef(0);
+  const sourceDirty = useRef(false);
+  const canvasSaveConflict = useRef(false);
+  const sourceBaseRevision = useRef("");
+  const clientId = useRef(`webview-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
 
   const visibleComments = useMemo(() => activeComments(comments), [comments]);
 
-  const loadScene = useCallback(async () => {
+  const loadScene = useCallback(async (options = {}) => {
+    const resetInteraction = options.resetInteraction !== false;
     const payload = await api("/api/scene");
-    const normalized = scenePayload(payload.scene, {}, { forExcalidraw: true });
-    const persisted = scenePayload(payload.scene);
+    const restored = restore(normalizeImportedScene(payload.scene), null, null, { repairBindings: true });
+    const normalized = scenePayload(restored, {}, { forExcalidraw: true });
+    const persisted = scenePayload(restored);
     setScene(normalized);
     setMarkerAppState(normalized.appState);
     setComments(payload.comments ?? []);
     setSourceText(JSON.stringify(persisted, null, 2));
+    sourceDirty.current = false;
+    canvasSaveConflict.current = false;
+    const revision = payload.revision ?? sceneFingerprint(persisted);
     lastSceneJson.current = JSON.stringify(persisted);
+    lastSceneFingerprint.current = revision;
+    sourceBaseRevision.current = revision;
+    if (resetInteraction) {
+      hasDrawingInteraction.current = false;
+    }
+    setLoadError("");
     excalidrawAPI?.updateScene({
       elements: normalized.elements,
       appState: normalized.appState,
@@ -60,34 +84,98 @@ function App() {
   }, [excalidrawAPI]);
 
   useEffect(() => {
-    loadScene().catch((error) => setStatus(nextStatus(error.message)));
+    loadScene().catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      setLoadError(message);
+      setStatus(nextStatus(message));
+    });
   }, [loadScene]);
 
   const saveScene = useCallback(async (nextScene) => {
     const normalized = scenePayload(nextScene);
     const json = JSON.stringify(normalized);
-    if (json === lastSceneJson.current) {
+    if (!sourceDirty.current) {
+      setSourceText(JSON.stringify(normalized, null, 2));
+    }
+
+    if (json === lastSceneJson.current || !shouldPersistSceneChange({
+      hasUserInteracted: hasDrawingInteraction.current,
+      lastSceneFingerprint: lastSceneFingerprint.current,
+      scene: normalized,
+    })) {
       return;
     }
 
+    inFlightSceneSaves.current += 1;
+    let response;
+    try {
+      response = await api("/api/scene", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scene: normalized,
+          clientId: clientId.current,
+          baseRevision: lastSceneFingerprint.current,
+        }),
+      });
+    } finally {
+      inFlightSceneSaves.current -= 1;
+    }
     lastSceneJson.current = json;
-    await api("/api/scene", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scene: normalized }),
-    });
-    setSourceText(JSON.stringify(normalized, null, 2));
+    const revision = response.revision ?? sceneFingerprint(normalized);
+    lastSceneFingerprint.current = revision;
+    canvasSaveConflict.current = false;
+    if (!sourceDirty.current) {
+      sourceBaseRevision.current = revision;
+    }
     setStatus(nextStatus("Saved"));
   }, []);
+
+  const queueSceneSave = useCallback((nextScene) => {
+    queuedSceneSaves.current += 1;
+    const run = async () => {
+      try {
+        await saveScene(nextScene);
+      } catch (error) {
+        canvasSaveConflict.current = true;
+        const message = error instanceof Error ? error.message : String(error);
+        setStatus(nextStatus(message));
+      } finally {
+        queuedSceneSaves.current -= 1;
+      }
+    };
+    const queued = sceneSaveQueue.current.catch(() => {}).then(run);
+    sceneSaveQueue.current = queued.catch(() => {});
+  }, [saveScene]);
 
   const onSceneChange = useCallback((elements, appState, files) => {
     const nextScene = scenePayload({ ...scene, elements, appState, files }, {}, { forExcalidraw: true });
     setMarkerAppState(nextScene.appState);
     window.clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(() => {
-      saveScene(nextScene).catch((error) => setStatus(nextStatus(error.message)));
+      saveTimer.current = null;
+      queueSceneSave(nextScene);
     }, 750);
-  }, [saveScene, scene]);
+  }, [queueSceneSave, scene]);
+
+  useEffect(() => {
+    const markDrawingInteraction = (event) => {
+      if (event.target instanceof Element && event.target.closest(".canvas")) {
+        hasDrawingInteraction.current = true;
+      }
+    };
+
+    window.addEventListener("pointerdown", markDrawingInteraction, true);
+    window.addEventListener("keydown", markDrawingInteraction, true);
+    window.addEventListener("drop", markDrawingInteraction, true);
+    window.addEventListener("paste", markDrawingInteraction, true);
+    return () => {
+      window.removeEventListener("pointerdown", markDrawingInteraction, true);
+      window.removeEventListener("keydown", markDrawingInteraction, true);
+      window.removeEventListener("drop", markDrawingInteraction, true);
+      window.removeEventListener("paste", markDrawingInteraction, true);
+    };
+  }, []);
 
   const refreshComments = useCallback(async () => {
     const payload = await api("/api/comments");
@@ -156,14 +244,29 @@ function App() {
   }, [refreshComments]);
 
   const saveSource = useCallback(async () => {
-    const parsed = JSON.parse(sourceText);
-    await api("/api/scene", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ scene: parsed }),
-    });
-    await loadScene();
-    setStatus(nextStatus("Source saved"));
+    try {
+      const parsed = JSON.parse(sourceText);
+      inFlightSceneSaves.current += 1;
+      try {
+        await api("/api/scene", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            scene: parsed,
+            clientId: clientId.current,
+            baseRevision: sourceBaseRevision.current || lastSceneFingerprint.current,
+          }),
+        });
+      } finally {
+        inFlightSceneSaves.current -= 1;
+      }
+      sourceDirty.current = false;
+      await loadScene();
+      setStatus(nextStatus("Source saved"));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setStatus(nextStatus(message));
+    }
   }, [loadScene, sourceText]);
 
   const exportSnapshot = useCallback(async (format) => {
@@ -205,7 +308,25 @@ function App() {
       }
 
       if (payload.type === "refresh-scene") {
-        await loadScene();
+        if (payload.reason === "scene-saved" && payload.clientId === clientId.current) {
+          return;
+        }
+
+        const hasLocalSceneWork = saveTimer.current !== null
+          || queuedSceneSaves.current > 0
+          || inFlightSceneSaves.current > 0
+          || canvasSaveConflict.current
+          || sourceDirty.current;
+        if (hasLocalSceneWork) {
+          setStatus(nextStatus("Remote changes detected; finish saving local changes before refresh."));
+          return;
+        }
+
+        await loadScene().catch((error) => {
+          const message = error instanceof Error ? error.message : String(error);
+          setLoadError(message);
+          setStatus(nextStatus(message));
+        });
         return;
       }
 
@@ -232,7 +353,7 @@ function App() {
   }, [exportSnapshot, loadScene, refreshComments]);
 
   if (!scene) {
-    return <div className="loading">Loading Excalidraw Workbench...</div>;
+    return <LoadState error={loadError} message={loadError || status.message} />;
   }
 
   return (
@@ -298,10 +419,30 @@ function App() {
             />
           ) : null}
           {!sidebarCollapsed && activeTab === "source" ? (
-            <SourcePanel sourceText={sourceText} setSourceText={setSourceText} saveSource={saveSource} />
+            <SourcePanel
+              sourceText={sourceText}
+              setSourceText={(value) => {
+                if (!sourceDirty.current) {
+                  sourceBaseRevision.current = lastSceneFingerprint.current;
+                }
+                sourceDirty.current = true;
+                setSourceText(value);
+              }}
+              saveSource={saveSource}
+            />
           ) : null}
         </aside>
       </main>
+    </div>
+  );
+}
+
+export function LoadState({ error, message }) {
+  const failed = Boolean(error);
+  return (
+    <div className={`loading ${failed ? "error" : ""}`} role={failed ? "alert" : "status"}>
+      <strong>{failed ? "Could not load Excalidraw drawing." : "Loading Excalidraw Workbench..."}</strong>
+      {message ? <p>{message}</p> : null}
     </div>
   );
 }
@@ -508,4 +649,6 @@ function blobToDataUrl(blob) {
   });
 }
 
-createRoot(document.getElementById("root")).render(<App />);
+if (!import.meta.env?.TEST) {
+  createRoot(document.getElementById("root")).render(<App />);
+}

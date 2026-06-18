@@ -51,7 +51,7 @@ jobs:
           "
 
       - name: Test Excalidraw host helpers
-        run: node --test extensions/excalidraw-workbench/common.test.mjs
+        run: node --test extensions/excalidraw-workbench/*.test.mjs
 
       - name: Test and build Excalidraw webview
         working-directory: extensions/excalidraw-workbench/webview
@@ -62,12 +62,12 @@ jobs:
           npm run build
           npm audit --audit-level=moderate
 
-      - name: Verify Excalidraw webview dist is current
+      - name: Verify Excalidraw webview runtime is current
         run: |
-          if [ -n "$(git status --porcelain -- extensions/excalidraw-workbench/webview/dist)" ]; then
-            echo "::error::extensions/excalidraw-workbench/webview/dist is stale. Run npm run build in the webview package and commit the generated assets."
-            git --no-pager status --short -- extensions/excalidraw-workbench/webview/dist
-            git --no-pager diff --stat -- extensions/excalidraw-workbench/webview/dist
+          if [ -n "$(git status --porcelain -- extensions/excalidraw-workbench/webview/runtime)" ]; then
+            echo "::error::extensions/excalidraw-workbench/webview/runtime is stale. Run npm run build in the webview package and commit the generated assets."
+            git --no-pager status --short -- extensions/excalidraw-workbench/webview/runtime
+            git --no-pager diff --stat -- extensions/excalidraw-workbench/webview/runtime
             exit 1
           fi
 
@@ -93,7 +93,7 @@ jobs:
           test -f "$COPILOT_HOME/extensions/excalidraw-workbench/extension.mjs" || { echo "::error::excalidraw-workbench/extension.mjs missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/excalidraw-workbench/common.mjs" || { echo "::error::excalidraw-workbench/common.mjs missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/excalidraw-workbench/server.mjs" || { echo "::error::excalidraw-workbench/server.mjs missing"; exit 1; }
-          test -f "$COPILOT_HOME/extensions/excalidraw-workbench/webview/dist/index.html" || { echo "::error::excalidraw-workbench/webview/dist/index.html missing"; exit 1; }
+          test -f "$COPILOT_HOME/extensions/excalidraw-workbench/webview/runtime/index.html" || { echo "::error::excalidraw-workbench/webview/runtime/index.html missing"; exit 1; }
           test ! -d "$COPILOT_HOME/extensions/excalidraw-workbench/webview/node_modules" || { echo "::error::excalidraw-workbench/webview/node_modules should not be installed"; exit 1; }
           test -f "$COPILOT_HOME/extensions/lib/tab-indicator.mjs" || { echo "::error::lib/tab-indicator.mjs missing"; exit 1; }
           test -f "$COPILOT_HOME/extensions/lib/resolve-node.mjs" || { echo "::error::lib/resolve-node.mjs missing"; exit 1; }
@@ -137,7 +137,7 @@ jobs:
             "excalidraw-workbench/extension.mjs",
             "excalidraw-workbench/common.mjs",
             "excalidraw-workbench/server.mjs",
-            "excalidraw-workbench/webview/dist/index.html",
+            "excalidraw-workbench/webview/runtime/index.html",
             "lib/tab-indicator.mjs",
             "lib/resolve-node.mjs"
           )
@@ -196,7 +196,7 @@ jobs:
             "excalidraw-workbench\extension.mjs",
             "excalidraw-workbench\common.mjs",
             "excalidraw-workbench\server.mjs",
-            "excalidraw-workbench\webview\dist\index.html",
+            "excalidraw-workbench\webview\runtime\index.html",
             "lib\tab-indicator.mjs",
             "lib\resolve-node.mjs"
           )
