@@ -51,7 +51,7 @@ You don't call tools or canvases directly — just describe what you want in nat
 1. **Open** — Copilot opens the `excalidraw-workbench` canvas with a workspace-local `.excalidraw` file path.
 2. **Serve** — The extension starts a loopback-only HTTP server on `127.0.0.1` and serves prebuilt local webview assets from `extensions/excalidraw-workbench/webview/runtime/`.
 3. **Edit** — The webview embeds the full Excalidraw editor and saves scene JSON back to the checked-out drawing file.
-4. **Comment** — Comments and replies are stored in a stable sidecar file named `<drawing>.comments.json`.
+4. **Comment** — Comments and replies are stored in a stable sidecar file named `<drawing>.excalidraw.comments.json`.
 5. **Collaborate** — New comments can be sent to the agent; the agent can list/reply/resolve comments, patch simple element fields, save source, and capture local SVG/PNG snapshot artifacts for visual inspection.
 
 The webview is designed to be portable and offline-friendly: Excalidraw assets are served locally, not loaded from CDNs at runtime. The committed bundle lives under `webview/runtime/` rather than `dist/` so source-folder extension installers that skip conventional build output directories still copy the files required to open the canvas.
@@ -152,7 +152,7 @@ For Azure DevOps watcher extensions:
 
 For Excalidraw Workbench development only:
 
-- Node.js 20.19+ and npm to run webview tests/builds. End users do not need npm because prebuilt webview assets are committed and copied by the install scripts.
+- Node.js 20.19+ and npm to run webview tests, builds, and audits. End users do not need npm because prebuilt webview assets are committed and copied by the install scripts.
 
 ### Azure CLI setup
 
@@ -178,8 +178,14 @@ The extensions auto-detect org/project/repo from your git remote when possible. 
 | Watcher not detecting changes | Check `pr_watcher_list` / `build_watcher_list` for status; verify Azure DevOps access |
 | Extension not loading | Verify files exist in `~/.copilot/extensions/ado-pr-watcher/` |
 | Excalidraw canvas opens but assets fail to load | Verify `~/.copilot/extensions/excalidraw-workbench/webview/runtime/index.html` exists, then reinstall and run `/clear` |
-| Excalidraw comments disappeared | Check for the sidecar file next to the drawing: `<drawing>.comments.json` |
+| Excalidraw comments disappeared | Check for the sidecar file next to the drawing: `<drawing>.excalidraw.comments.json` |
 | Agent needs to inspect visual layout | Ask it to capture an Excalidraw snapshot; the extension writes a local SVG/PNG artifact for inspection |
+
+## Contributing and security
+
+Issues and PRs are welcome. Start with the [contributing guide](CONTRIBUTING.md), use the GitHub issue templates for bugs/features/questions, and do not include secrets, private URLs, or personal paths in public issues or PRs.
+
+Security vulnerabilities should be reported privately through GitHub's [private vulnerability reporting](https://github.com/cirvine-msft/copilot-toolkit/security/advisories/new), not as public issues. Dependency updates are monitored with Dependabot, dependency changes are reviewed on PRs, and CodeQL scans JavaScript on pushes, PRs, and a weekly schedule.
 
 ## License
 

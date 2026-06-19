@@ -16,6 +16,14 @@ This project contains GitHub Copilot CLI extensions that interact with Azure Dev
 - Unsafe handling of API responses
 - Path traversal or injection in shell command parsing
 
+## Security Automation
+
+This repo uses:
+
+- Dependabot for GitHub Actions and the Excalidraw Workbench webview npm package
+- Dependency Review on pull requests, failing vulnerable dependency changes at moderate severity or higher
+- CodeQL JavaScript analysis on pushes, pull requests, and a weekly schedule
+
 ## Supported Versions
 
 Only the latest version on `main` is supported.

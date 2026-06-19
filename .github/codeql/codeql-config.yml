@@ -1,0 +1,5 @@
+name: CodeQL config
+
+paths-ignore:
+  - "extensions/excalidraw-workbench/webview/runtime/**"
+  - "**/node_modules/**"
