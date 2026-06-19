@@ -27,6 +27,12 @@ For iterating on extension code:
 
 Alternatively, use `copilot --plugin-dir .` to load the repo directly as a plugin source during development (useful for skills/agents, not extensions).
 
+## Filing issues
+
+Use the GitHub issue templates for bug reports, feature requests, and support questions. Include enough detail to reproduce the problem, but keep examples generic and redact secrets, tokens, private URLs, organization names, and personal paths.
+
+For security vulnerabilities, do not open a public issue. Use GitHub's [private vulnerability reporting](https://github.com/cirvine-msft/copilot-toolkit/security/advisories/new).
+
 ## Code conventions
 
 - Extension code is ES modules (`.mjs`) — no build step, no bundled dependencies
@@ -67,8 +73,8 @@ find extensions -path '*/node_modules/*' -prune -o -name '*.mjs' -type f -exec n
 # Run host tests
 node --test extensions/excalidraw-workbench/*.test.mjs
 
-# Run webview tests/build when touching Excalidraw Workbench
-cd extensions/excalidraw-workbench/webview && npm ci && npm run check
+# Run webview tests/build/audit when touching Excalidraw Workbench
+cd extensions/excalidraw-workbench/webview && npm ci && npm run check && npm audit --audit-level=moderate
 
 # Run install script and verify it works
 ./install-extensions.sh
@@ -76,10 +82,12 @@ cd extensions/excalidraw-workbench/webview && npm ci && npm run check
 
 CI runs automatically on PRs and checks:
 - `.mjs` syntax validity
-- Excalidraw Workbench host tests and webview tests/build
+- Excalidraw Workbench host tests, webview tests, license checks, build, audit, and stale-runtime detection
 - `plugin.json` structure
 - Install script smoke tests (bash on Ubuntu, pwsh on Ubuntu, PowerShell on Windows)
 - Installer idempotence (stale files are removed on reinstall)
+- Dependency review for vulnerable dependency changes
+- CodeQL JavaScript security analysis
 
 ## Content review checklist
 

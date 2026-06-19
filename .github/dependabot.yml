@@ -1,9 +1,19 @@
 version: 2
 updates:
-  # Keep GitHub Actions pinned to latest
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
     commit-message:
       prefix: "ci"
+
+  - package-ecosystem: "npm"
+    directory: "/extensions/excalidraw-workbench/webview"
+    schedule:
+      interval: "weekly"
+    groups:
+      webview-dependencies:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "deps"

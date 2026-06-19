@@ -1,2 +1,6 @@
 extensions/excalidraw-workbench/webview/index.html text eol=lf
 extensions/excalidraw-workbench/webview/runtime/**/*.html text eol=lf
+extensions/excalidraw-workbench/webview/runtime/**/*.css text eol=lf
+extensions/excalidraw-workbench/webview/runtime/**/*.js text eol=lf
+extensions/excalidraw-workbench/webview/runtime/**/*.json text eol=lf
+extensions/excalidraw-workbench/webview/runtime/**/*.txt text eol=lf

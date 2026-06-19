@@ -174,12 +174,6 @@ Comment text, drawing JSON, and snapshot data are routed through the Copilot ses
 - `extensions/excalidraw-workbench/THIRD_PARTY_NOTICES.md` lists licenses for everything in the bundle.
 - Rebuild from source with `cd extensions/excalidraw-workbench/webview && npm ci && npm run build` if you want byte-for-byte audit.
 
-
-
-For contributors only:
-
-- Node.js 20.19+ and npm to run the webview tests and rebuild the runtime bundle. End users do not need these.
-
 ## Requirements
 
 - [GitHub Copilot](https://github.com/features/copilot) app
