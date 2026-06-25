@@ -4,6 +4,7 @@ import { Excalidraw, exportToBlob, exportToSvg, restore } from "@excalidraw/exca
 import {
   activeComments,
   commentAnchorFromSelection,
+  commentMarkerScenePoint,
   normalizeImportedScene,
   nextStatus,
   scenePayload,
@@ -40,6 +41,7 @@ export function App() {
   const [expandedCommentIds, setExpandedCommentIds] = useState(() => new Set());
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [markerAppState, setMarkerAppState] = useState(null);
+  const [markerElements, setMarkerElements] = useState([]);
   const [excalidrawAPI, setExcalidrawAPI] = useState(null);
   const saveTimer = useRef(null);
   const sceneSaveQueue = useRef(Promise.resolve());
@@ -63,6 +65,7 @@ export function App() {
     const persisted = scenePayload(restored);
     setScene(normalized);
     setMarkerAppState(normalized.appState);
+    setMarkerElements(normalized.elements);
     setComments(payload.comments ?? []);
     setSourceText(JSON.stringify(persisted, null, 2));
     sourceDirty.current = false;
@@ -151,6 +154,7 @@ export function App() {
   const onSceneChange = useCallback((elements, appState, files) => {
     const nextScene = scenePayload({ ...scene, elements, appState, files }, {}, { forExcalidraw: true });
     setMarkerAppState(nextScene.appState);
+    setMarkerElements(nextScene.elements);
     window.clearTimeout(saveTimer.current);
     saveTimer.current = window.setTimeout(() => {
       saveTimer.current = null;
@@ -379,6 +383,7 @@ export function App() {
             comments={visibleComments}
             draftComment={draftComment}
             appState={markerAppState}
+            elements={markerElements}
             selectedCommentId={selectedCommentId}
             onSelect={(commentId) => {
               setSelectedCommentId(commentId);
@@ -447,7 +452,7 @@ export function LoadState({ error, message }) {
   );
 }
 
-function CommentMarkers({ comments, draftComment, appState, selectedCommentId, onSelect }) {
+function CommentMarkers({ comments, draftComment, appState, elements, selectedCommentId, onSelect }) {
   if (!appState || (comments.length === 0 && !draftComment)) {
     return null;
   }
@@ -459,7 +464,8 @@ function CommentMarkers({ comments, draftComment, appState, selectedCommentId, o
   return (
     <div className="comment-marker-layer" aria-hidden="false">
       {markerComments.map((comment, index) => {
-        const point = scenePointToViewport(comment, appState);
+        const scenePoint = commentMarkerScenePoint(comment, elements);
+        const point = scenePointToViewport(scenePoint, appState);
         return (
           <button
             key={comment.id}

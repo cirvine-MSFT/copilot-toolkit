@@ -524,15 +524,32 @@ function renderElementShape(element) {
     }
 }
 
-function renderCommentMarkers(comments) {
+function renderCommentMarkers(comments, elements) {
     return comments
         .filter((comment) => !comment.resolved)
         .map((comment, index) => {
-            const x = Number(comment.x) || 0;
-            const y = Number(comment.y) || 0;
+            const point = commentMarkerScenePoint(comment, elements);
+            const x = point.x;
+            const y = point.y;
             return `<g class="comment-marker" data-comment-id="${htmlEscape(comment.id)}"><circle cx="${x}" cy="${y}" r="14" fill="#fff4ce" stroke="#8a6d00" stroke-width="2" /><text x="${x}" y="${y + 5}" font-family="Segoe UI, Arial, sans-serif" font-size="13" text-anchor="middle" fill="#000000">${index + 1}</text><title>${htmlEscape(comment.body)}</title></g>`;
         })
         .join("\n");
+}
+
+export function commentMarkerScenePoint(comment, elements) {
+    const elementId = comment?.elementId;
+    if (elementId && Array.isArray(elements)) {
+        const element = elements.find((candidate) => candidate?.id === elementId && !candidate?.isDeleted);
+        if (element) {
+            const bounds = elementBounds(element);
+            return { x: bounds.x + bounds.width, y: bounds.y };
+        }
+    }
+
+    return {
+        x: Number(comment?.x) || 0,
+        y: Number(comment?.y) || 0,
+    };
 }
 
 export function renderSvg(diagram, comments = []) {
@@ -553,7 +570,7 @@ export function renderSvg(diagram, comments = []) {
 </defs>
 <rect x="${bounds.x}" y="${bounds.y}" width="${bounds.width}" height="${bounds.height}" fill="${htmlEscape(background)}" />
 ${body}
-${renderCommentMarkers(comments)}
+${renderCommentMarkers(comments, elements)}
 </svg>`;
 }
 
