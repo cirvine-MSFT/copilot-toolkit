@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   activeComments,
   commentAnchorFromSelection,
+  commentMarkerScenePoint,
   elementAtScenePoint,
   normalizeImportedScene,
   normalizeAppState,
@@ -168,5 +169,53 @@ describe("commentAnchorFromSelection", () => {
       ], { x: 15, y: 15 });
       expect(element.id).toBe("front");
     });
+  });
+});
+
+describe("commentMarkerScenePoint", () => {
+  const box = { id: "box", type: "rectangle", x: 10, y: 20, width: 80, height: 40 };
+
+  it("anchors to the element's top-right corner when elementId matches", () => {
+    expect(commentMarkerScenePoint(
+      { elementId: "box", x: 999, y: 999 },
+      [box],
+    )).toEqual({ x: 90, y: 20 });
+  });
+
+  it("tracks the element when it moves", () => {
+    const moved = { ...box, x: 200, y: 300 };
+    expect(commentMarkerScenePoint(
+      { elementId: "box", x: 50, y: 40 },
+      [moved],
+    )).toEqual({ x: 280, y: 300 });
+  });
+
+  it("tracks the element when it resizes", () => {
+    const resized = { ...box, width: 160, height: 100 };
+    expect(commentMarkerScenePoint(
+      { elementId: "box", x: 50, y: 40 },
+      [resized],
+    )).toEqual({ x: 170, y: 20 });
+  });
+
+  it("falls back to stored x/y when the comment has no elementId", () => {
+    expect(commentMarkerScenePoint(
+      { x: 42, y: 84 },
+      [box],
+    )).toEqual({ x: 42, y: 84 });
+  });
+
+  it("falls back to stored x/y when the element is no longer in the scene", () => {
+    expect(commentMarkerScenePoint(
+      { elementId: "box", x: 42, y: 84 },
+      [],
+    )).toEqual({ x: 42, y: 84 });
+  });
+
+  it("falls back to stored x/y when the element is marked deleted", () => {
+    expect(commentMarkerScenePoint(
+      { elementId: "box", x: 42, y: 84 },
+      [{ ...box, isDeleted: true }],
+    )).toEqual({ x: 42, y: 84 });
   });
 });

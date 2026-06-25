@@ -127,6 +127,22 @@ export function elementBounds(element) {
   };
 }
 
+export function commentMarkerScenePoint(comment, elements) {
+  const elementId = comment?.elementId;
+  if (elementId && Array.isArray(elements)) {
+    const element = elements.find((candidate) => candidate?.id === elementId && !candidate?.isDeleted);
+    if (element) {
+      const bounds = elementBounds(element);
+      return { x: bounds.x + bounds.width, y: bounds.y };
+    }
+  }
+
+  return {
+    x: Number(comment?.x) || 0,
+    y: Number(comment?.y) || 0,
+  };
+}
+
 export function elementLabel(element) {
   if (!element) {
     return "";
