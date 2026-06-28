@@ -365,7 +365,11 @@ export function App() {
         </div>
         <span className="spacer" />
         <span className="status">{status.message}</span>
-        <button type="button" onClick={() => loadScene().catch((error) => setStatus(nextStatus(error.message)))}>Refresh</button>
+        <button type="button" onClick={() => loadScene().catch((error) => {
+          const message = error instanceof Error ? error.message : String(error);
+          setLoadError(message);
+          setStatus(nextStatus(message));
+        })}>Refresh</button>
       </header>
       <main className={`content ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
         <section className="canvas">
@@ -649,6 +653,51 @@ function blobToDataUrl(blob) {
   });
 }
 
+export class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  componentDidCatch(error, info) {
+    if (typeof console !== "undefined" && console.error) {
+      console.error("Excalidraw Workbench render error:", error, info);
+    }
+  }
+
+  handleReload = () => {
+    if (typeof window !== "undefined") {
+      window.location.reload();
+    }
+  };
+
+  render() {
+    if (this.state.error) {
+      const message = this.state.error instanceof Error
+        ? this.state.error.message
+        : String(this.state.error);
+      return (
+        <div className="loading error" role="alert">
+          <strong>Excalidraw Workbench failed to render.</strong>
+          {message ? <p>{message}</p> : null}
+          <p>
+            <button type="button" onClick={this.handleReload}>Reload</button>
+          </p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 if (!import.meta.env?.TEST) {
-  createRoot(document.getElementById("root")).render(<App />);
+  createRoot(document.getElementById("root")).render(
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>,
+  );
 }
