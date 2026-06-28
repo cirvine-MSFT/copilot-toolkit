@@ -6,6 +6,7 @@ import test from "node:test";
 import {
     addReply,
     applyElementPatch,
+    commentMarkerScenePoint,
     createComment,
     loadCommentState,
     loadDiagram,
@@ -145,6 +146,53 @@ test("renderSvg keeps numeric-string arrow geometry finite", async () => {
 
     assert.doesNotMatch(svg, /NaN/);
     assert.match(svg, /viewBox="[-0-9.]+ [-0-9.]+ [-0-9.]+ [-0-9.]+"/);
+});
+
+test("commentMarkerScenePoint anchors to live element top-right when elementId matches", () => {
+    const box = { id: "box", type: "rectangle", x: 10, y: 20, width: 80, height: 40 };
+    assert.deepEqual(
+        commentMarkerScenePoint({ elementId: "box", x: 999, y: 999 }, [box]),
+        { x: 90, y: 20 },
+    );
+});
+
+test("commentMarkerScenePoint tracks element after move and resize", () => {
+    const moved = { id: "box", type: "rectangle", x: 200, y: 300, width: 160, height: 100 };
+    assert.deepEqual(
+        commentMarkerScenePoint({ elementId: "box", x: 50, y: 40 }, [moved]),
+        { x: 360, y: 300 },
+    );
+});
+
+test("commentMarkerScenePoint falls back to stored x/y when element is missing, deleted, or unidentified", () => {
+    const stored = { elementId: "box", x: 42, y: 84 };
+    assert.deepEqual(commentMarkerScenePoint(stored, []), { x: 42, y: 84 });
+    assert.deepEqual(
+        commentMarkerScenePoint(stored, [{ id: "box", type: "rectangle", x: 0, y: 0, width: 10, height: 10, isDeleted: true }]),
+        { x: 42, y: 84 },
+    );
+    assert.deepEqual(
+        commentMarkerScenePoint({ x: 7, y: 9 }, [{ id: "box", type: "rectangle", x: 0, y: 0, width: 10, height: 10 }]),
+        { x: 7, y: 9 },
+    );
+});
+
+test("renderSvg places marker at element top-right when elementId matches", () => {
+    const svg = renderSvg({
+        elements: [{ id: "box", type: "rectangle", x: 10, y: 20, width: 80, height: 40 }],
+        appState: { viewBackgroundColor: "#ffffff" },
+    }, [createComment({ body: "On the box", x: 999, y: 999, elementId: "box" })]);
+
+    assert.match(svg, /<circle cx="90" cy="20"/);
+});
+
+test("renderSvg falls back to stored point when elementId is missing", () => {
+    const svg = renderSvg({
+        elements: [{ id: "box", type: "rectangle", x: 10, y: 20, width: 80, height: 40 }],
+        appState: { viewBackgroundColor: "#ffffff" },
+    }, [createComment({ body: "Floating", x: 5, y: 7 })]);
+
+    assert.match(svg, /<circle cx="5" cy="7"/);
 });
 
 test("saveDiagram writes formatted JSON", async () => {
