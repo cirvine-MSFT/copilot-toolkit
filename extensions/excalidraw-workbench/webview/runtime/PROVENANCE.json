@@ -9,17 +9,17 @@
   "directRuntimeDependencies": [
     {
       "name": "@excalidraw/excalidraw",
-      "version": "0.17.6",
+      "version": "0.18.1",
       "license": "MIT"
     },
     {
       "name": "react",
-      "version": "18.3.1",
+      "version": "19.2.7",
       "license": "MIT"
     },
     {
       "name": "react-dom",
-      "version": "18.3.1",
+      "version": "19.2.7",
       "license": "MIT"
     }
   ],

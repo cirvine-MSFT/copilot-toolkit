@@ -5,9 +5,14 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../runtime/", import.meta.url));
 
 const secretPatterns = [
-  { name: "Google API key", pattern: /AIza[0-9A-Za-z_-]{35}/g },
-  { name: "GitHub token", pattern: /(?:github_pat_[A-Za-z0-9_]{50,}|gh[pousr]_[A-Za-z0-9_]{30,})/g },
-  { name: "AWS access key ID", pattern: /AKIA[0-9A-Z]{16}/g },
+  // Bound each pattern with non-alphanumeric lookarounds so matches embedded
+  // inside longer alphanumeric runs (e.g. base64-encoded WebAssembly payloads
+  // shipped by mermaid's diagram chunks) are not flagged. Real credentials
+  // appear as standalone string literals, so quote/space/punctuation
+  // boundaries always satisfy these lookarounds.
+  { name: "Google API key", pattern: /(?<![A-Za-z0-9])AIza[0-9A-Za-z_-]{35}(?![A-Za-z0-9_-])/g },
+  { name: "GitHub token", pattern: /(?<![A-Za-z0-9_])(?:github_pat_[A-Za-z0-9_]{50,}|gh[pousr]_[A-Za-z0-9_]{30,})(?![A-Za-z0-9_])/g },
+  { name: "AWS access key ID", pattern: /(?<![A-Za-z0-9])AKIA[0-9A-Z]{16}(?![A-Za-z0-9])/g },
   { name: "private key block", pattern: /-----BEGIN (?:RSA |OPENSSH |DSA |EC |PGP )?PRIVATE KEY-----/g },
 ];
 
