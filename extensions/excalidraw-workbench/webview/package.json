@@ -11,12 +11,12 @@
     "check": "npm run test && npm run license-check && npm run build"
   },
   "dependencies": {
-    "@excalidraw/excalidraw": "^0.17.6",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "@excalidraw/excalidraw": "^0.18.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^5.2.0",
+    "@vitejs/plugin-react": "^6.0.2",
     "jsdom": "^29.1.1",
     "vite": "^8.0.16",
     "vitest": "^4.1.9"
