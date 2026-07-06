@@ -52,6 +52,8 @@ Watchers communicate with the extension host via JSON files in a temp directory.
 - CI runs `npm ci`, tests, build, stale-runtime detection, and `npm audit --audit-level=moderate`;
 - runtime assets must be served from loopback/local files, not CDNs.
 
+**Any change under `webview/` — including Dependabot bumps of `webview/package.json` — requires rebuilding and committing `webview/runtime/**` in the same PR.** See the repo-root [AGENTS.md](../../AGENTS.md) for the full regeneration recipe and known failure modes (license allowlist edits, npm `overrides` for transitive vulns, Vitest resolver aliases, secret-scan false positives).
+
 ## Adding a new extension
 
 1. Create `extensions/my-extension/extension.mjs`

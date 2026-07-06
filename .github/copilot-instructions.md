@@ -1,5 +1,7 @@
 # Copilot Instructions — copilot-toolkit
 
+> **See also: [AGENTS.md](../AGENTS.md) at the repo root** — the same guidance in a form other coding agents (Copilot coding agent, Codex, Cursor, etc.) will also pick up. Keep the two in sync.
+
 ## What this repo is
 
 A public collection of GitHub Copilot CLI extensions (and eventually skills/agents) by cirvine-msft. Extensions are ES module files (`.mjs`) that run inside the Copilot CLI runtime.
@@ -28,6 +30,7 @@ plugin.json           # Plugin manifest for skills/agents distribution
 - **PowerShell 5.1 compatibility.** Install scripts must work on Windows PowerShell 5.1. This means: no ternary expressions, no 3+ argument `Join-Path`, no reliance on `$HOME` reflecting `$env:HOME`.
 - **COPILOT_HOME env var.** Install scripts respect `COPILOT_HOME` (same as the CLI itself). Default target is `~/.copilot/extensions/`.
 - **Mirror install semantics.** Install scripts delete-then-copy each extension directory so stale files from previous versions are removed.
+- **Rebuild the Excalidraw webview runtime on every dep bump.** Any change under `extensions/excalidraw-workbench/webview/` — including Dependabot PRs that only touch `package.json` / `package-lock.json` — requires running `npm ci && npm run test && npm run license-check && npm run build && npm audit --audit-level=moderate` in that directory and committing the regenerated `webview/runtime/**` onto the same PR branch. CI's stale-runtime check will fail the PR otherwise. See [AGENTS.md](../AGENTS.md) for the full recipe and common failure modes.
 
 ## CI and security scanning
 
