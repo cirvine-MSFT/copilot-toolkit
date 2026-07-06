@@ -7,7 +7,10 @@ const root = fileURLToPath(new URL("../runtime/", import.meta.url));
 const secretPatterns = [
   { name: "Google API key", pattern: /AIza[0-9A-Za-z_-]{35}/g },
   { name: "GitHub token", pattern: /(?:github_pat_[A-Za-z0-9_]{50,}|gh[pousr]_[A-Za-z0-9_]{30,})/g },
-  { name: "AWS access key ID", pattern: /AKIA[0-9A-Z]{16}/g },
+  // Require the 20-char AWS access key ID to be a standalone token, not a substring of
+  // a longer base64/hex blob. The Excalidraw mermaid bundle ships a large base64-encoded
+  // WASM chunk that would otherwise produce thousands of false-positive matches.
+  { name: "AWS access key ID", pattern: /(?<![A-Za-z0-9])AKIA[0-9A-Z]{16}(?![A-Za-z0-9])/g },
   { name: "private key block", pattern: /-----BEGIN (?:RSA |OPENSSH |DSA |EC |PGP )?PRIVATE KEY-----/g },
 ];
 

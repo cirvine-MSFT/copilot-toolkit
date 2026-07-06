@@ -29,6 +29,13 @@ function redactBundledProviderKeys() {
 export default defineConfig({
   plugins: [react(), redactBundledProviderKeys()],
   base: "./",
+  resolve: {
+    alias: [
+      // @excalidraw/excalidraw's dev bundle imports "roughjs/bin/rough" without the
+      // ".js" extension, which Vite 8 / Vitest 4's stricter Node ESM resolver rejects.
+      { find: /^roughjs\/bin\/rough$/, replacement: "roughjs/bin/rough.js" },
+    ],
+  },
   build: {
     outDir: "runtime",
     emptyOutDir: true,
@@ -37,5 +44,11 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: true,
+    testTimeout: 30000,
+    server: {
+      deps: {
+        inline: ["@excalidraw/excalidraw"],
+      },
+    },
   },
 });
