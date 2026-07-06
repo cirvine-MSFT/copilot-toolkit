@@ -134,6 +134,7 @@ code {
   display: grid;
   flex: 1;
   grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
 }
 
@@ -142,8 +143,19 @@ code {
 }
 
 .canvas {
+  height: 100%;
   min-height: 0;
+  overflow: hidden;
   position: relative;
+  contain: strict;
+}
+
+.canvas > .excalidraw,
+.canvas > .excalidraw-container {
+  position: absolute;
+  inset: 0;
+  height: 100% !important;
+  width: 100% !important;
 }
 
 .sidebar {
