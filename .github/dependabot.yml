@@ -17,3 +17,23 @@ updates:
           - "*"
     commit-message:
       prefix: "deps"
+    # Major-version pins only — patch and minor security updates still flow.
+    # Remove these together as part of the 0.18.x migration tracked in
+    # https://github.com/cirvine-MSFT/copilot-toolkit/issues/30
+    ignore:
+      # 0.18 deprecated the excalidraw-assets folder and stopped auto-injecting
+      # CSS, which silently produces a runtime with no fonts, locales, or styles.
+      # It also pulls lodash-es advisories that have no upstream fix.
+      - dependency-name: "@excalidraw/excalidraw"
+        update-types: ["version-update:semver-major"]
+      # @excalidraw/excalidraw 0.17.6 peer range caps at React 18. These must be
+      # unpinned together with the Excalidraw major, never on their own.
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      # jsdom 30 crashes the vitest forks worker with
+      # "webidl.util.markAsUncloneable is not a function". Revisit once the
+      # migration lands and the toolchain moves together.
+      - dependency-name: "jsdom"
+        update-types: ["version-update:semver-major"]

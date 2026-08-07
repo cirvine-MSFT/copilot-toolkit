@@ -18,13 +18,13 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Syntax check extension files
         run: |
           echo "Checking .mjs syntax..."
           errors=0
-          for f in $(find extensions -path '*/node_modules/*' -prune -o -name '*.mjs' -type f -print); do
+          for f in $(find extensions tools -path '*/node_modules/*' -prune -o -name '*.mjs' -type f -print); do
             if ! node --check "$f" 2>&1; then
               echo "::error file=$f::Syntax error in $f"
               errors=$((errors + 1))
@@ -50,7 +50,7 @@ jobs:
             console.log('plugin.json is valid:', plugin.name, plugin.version);
           "
 
-      - name: Test Excalidraw host helpers
+      - name: Test Excalidraw host helpers and server smoke tests
         run: node --test extensions/excalidraw-workbench/*.test.mjs
 
       - name: Test and build Excalidraw webview

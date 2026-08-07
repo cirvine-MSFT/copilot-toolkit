@@ -26,3 +26,6 @@ out/
 
 # Local extension artifacts
 .copilot/
+
+# Contributor-only render check output (tools/excalidraw-render-check.mjs)
+.render-check/
