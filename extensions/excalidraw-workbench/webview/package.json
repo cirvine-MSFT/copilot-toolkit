@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "build": "vite build && node scripts/copy-excalidraw-assets.mjs && node scripts/write-runtime-provenance.mjs && node scripts/check-no-bundled-secrets.mjs",
+    "build": "vite build && node scripts/copy-excalidraw-assets.mjs && node scripts/write-runtime-provenance.mjs && node scripts/check-no-bundled-secrets.mjs && node scripts/check-runtime-assets.mjs",
     "secret-scan": "node scripts/check-no-bundled-secrets.mjs",
+    "asset-check": "node scripts/check-runtime-assets.mjs",
     "license-check": "node scripts/check-runtime-licenses.mjs",
     "check": "npm run test && npm run license-check && npm run build"
   },

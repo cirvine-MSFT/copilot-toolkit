@@ -52,6 +52,55 @@ Watchers communicate with the extension host via JSON files in a temp directory.
 - CI runs `npm ci`, tests, build, stale-runtime detection, and `npm audit --audit-level=moderate`;
 - runtime assets must be served from loopback/local files, not CDNs.
 
+## Updating webview dependencies
+
+Dependabot cannot land a webview dependency update on its own, because it never
+rebuilds the committed `runtime/` bundle. Follow this order:
+
+1. Check out the Dependabot branch.
+2. `cd extensions/excalidraw-workbench/webview && npm ci && npm run check`
+3. **Rebuild and commit `runtime/`.** Vite content-hashes filenames, so most
+   build-affecting bumps change the output and the stale-runtime CI check will
+   fail otherwise. This is the single biggest source of dependency-PR friction.
+4. Run the render check — see below. This is the only step that proves the canvas
+   actually renders.
+5. Only then merge.
+
+### The render check is not optional for major bumps
+
+`npm run test` and the server smoke tests both pass against a runtime with **no
+stylesheet and no fonts**, because neither one paints pixels. A real browser is
+the only way to catch that class of break:
+
+```bash
+npm install --no-save playwright
+npx playwright install chromium
+node tools/excalidraw-render-check.mjs            # add --headed to watch it
+```
+
+`tools/` lives outside `extensions/` on purpose — the install scripts mirror-copy
+everything except `node_modules`, so contributor tooling placed under
+`extensions/` would ship into every user's `~/.copilot/extensions`.
+
+### Fail loudly, never skip silently
+
+`webview/scripts/copy-excalidraw-assets.mjs` previously guarded its source paths
+with a bare `existsSync` skip. When upstream Excalidraw 0.18 deprecated the
+`excalidraw-assets` folder, that guard turned a breaking layout change into a
+build that reported success while emitting a runtime with no fonts, no locales,
+and no vendor chunk. Both that script and
+`webview/scripts/check-runtime-assets.mjs` now hard-fail instead. Do not relax
+them to make a dependency bump pass.
+
+### Pinned majors
+
+`@excalidraw/excalidraw`, `react`, `react-dom`, and `jsdom` are pinned to
+**majors only** in `.github/dependabot.yml`; patch and minor security updates
+still flow normally. The pins are tracked by
+[issue #30](https://github.com/cirvine-MSFT/copilot-toolkit/issues/30) and must be
+lifted together, not individually — `@excalidraw/excalidraw` 0.17.6's peer range
+caps React at 18.
+
 ## Adding a new extension
 
 1. Create `extensions/my-extension/extension.mjs`
@@ -64,8 +113,10 @@ Watchers communicate with the extension host via JSON files in a temp directory.
 ## Testing
 
 Validation is:
-- `node --check` for syntax
+- `node --check` for syntax (covers `extensions/` and `tools/`)
 - `node --test` for extension-specific host tests when present
-- webview package tests/builds for canvas extensions with browser assets
+- `node --test extensions/excalidraw-workbench/*.test.mjs` also runs `serve-smoke.test.mjs`, which boots the real loopback server against a sample drawing and verifies every runtime asset serves correctly
+- webview package tests/builds for canvas extensions with browser assets, including `scripts/check-runtime-assets.mjs` which asserts the built runtime is actually complete
+- `node tools/excalidraw-render-check.mjs` (contributor-only, needs Playwright) for real-browser render verification
 - Manual testing in a live Copilot CLI session
 - CI smoke tests for install scripts

@@ -183,6 +183,53 @@ For contributors only:
 
 - Node.js 20.19+ and npm to run the webview tests and rebuild the runtime bundle. End users do not need these.
 
+## For contributors
+
+### Verifying the canvas locally
+
+Three layers, cheapest first. Run all three before accepting a dependency update.
+
+```bash
+# 1. Unit tests + license check + build (build also asserts the runtime is complete)
+cd extensions/excalidraw-workbench/webview && npm ci && npm run check
+
+# 2. Server + asset smoke tests against the committed runtime
+node --test extensions/excalidraw-workbench/*.test.mjs
+
+# 3. Real-browser render check — the only one that proves it renders
+npm install --no-save playwright
+npx playwright install chromium
+node tools/excalidraw-render-check.mjs
+```
+
+Layer 3 accepts `--headed` to watch it run, `--keep-open` to leave the browser up,
+and `--drawing <path>` to open a specific file. It writes a screenshot to
+`.render-check/canvas.png`.
+
+**Layers 1 and 2 both pass against a runtime with no stylesheet and no fonts** —
+neither paints pixels. Only layer 3 catches that, which is exactly how an earlier
+Excalidraw major upgrade shipped a broken canvas.
+
+To test the real install path end to end:
+
+```bash
+./install-extensions.sh excalidraw-workbench    # or .\install-extensions.ps1
+```
+
+Then `/clear` in the Copilot app and open `examples/excalidraw/smoke-test.excalidraw`.
+
+### Updating webview dependencies
+
+Dependabot cannot land these on its own — it never rebuilds the committed
+`runtime/` bundle, and Vite content-hashes filenames, so the stale-runtime CI
+check fails. Take the branch, run `npm run check`, **commit the rebuilt
+`runtime/`**, run the render check, then merge.
+
+`@excalidraw/excalidraw`, `react`, `react-dom` and `jsdom` are pinned to majors
+only; patch and minor security updates still flow. See
+[issue #30](https://github.com/cirvine-MSFT/copilot-toolkit/issues/30) for the
+0.18.x migration and why the pin exists.
+
 ## Troubleshooting
 
 | Problem | Fix |
